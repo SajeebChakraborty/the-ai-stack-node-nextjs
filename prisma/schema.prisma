@@ -1,0 +1,538 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  creator
+  founder
+  moderator
+  admin
+}
+
+enum PricingModel {
+  free
+  freemium
+  paid
+  usage_based
+  enterprise
+}
+
+enum ToolStatus {
+  draft
+  published
+  archived
+}
+
+enum ReviewType {
+  user
+  creator
+  verified_social
+  editorial
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+  unpaid
+  incomplete
+  incomplete_expired
+  paused
+}
+
+enum MediaKind {
+  image
+  video
+  document
+  logo
+  favicon
+}
+
+model Profile {
+  id                 String             @id @default(cuid())
+  externalAuthId     String?            @unique
+  email              String             @unique
+  fullName           String?
+  handle             String?            @unique
+  avatarUrl          String?            @db.Text
+  role               Role               @default(user)
+  bio                String?            @db.Text
+  location           String?
+  websiteUrl         String?            @db.Text
+  trustScore         Int                @default(50)
+  reputationScore    Int                @default(0)
+  isVerified         Boolean            @default(false)
+  suspendedAt        DateTime?
+  tools              Tool[]             @relation("FounderTools")
+  reviews            Review[]
+  discussions        Discussion[]
+  comments           Comment[]
+  bookmarks          Bookmark[]
+  stacks             AiStack[]
+  creatorProfile     CreatorProfile?
+  founderProfile     FounderProfile?
+  subscriptions      Subscription[]
+  socialAccounts     SocialAccount[]
+  notifications      Notification[]
+  affiliateLinks     AffiliateLink[]
+  creatorEarnings    CreatorEarning[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([role])
+  @@index([trustScore])
+}
+
+model Category {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  name           String         @unique
+  description    String         @db.Text
+  seoTitle       String
+  seoDescription String         @db.Text
+  icon           String?
+  sortOrder      Int            @default(0)
+  isFeatured     Boolean        @default(false)
+  tools          ToolCategory[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Tool {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  name           String
+  tagline        String
+  description    String          @db.Text
+  logoUrl        String?         @db.Text
+  websiteUrl     String          @db.Text
+  affiliateUrl   String?         @db.Text
+  pricingModel   PricingModel    @default(freemium)
+  startingPrice  Decimal         @default(0) @db.Decimal(10, 2)
+  verified       Boolean         @default(false)
+  status         ToolStatus      @default(draft)
+  founderId      String?
+  founder        Profile?        @relation("FounderTools", fields: [founderId], references: [id], onDelete: SetNull)
+  ratingAvg      Decimal         @default(0) @db.Decimal(3, 2)
+  reviewCount    Int             @default(0)
+  trustScore     Int             @default(50)
+  trendingScore  Int             @default(0)
+  growthRate     Decimal         @default(0) @db.Decimal(7, 2)
+  launchedAt     DateTime?
+  socialLinks    Json?
+  metadata       Json?
+  categories     ToolCategory[]
+  mediaAssets    MediaAsset[]
+  reviews        Review[]
+  discussions    Discussion[]
+  bookmarks      Bookmark[]
+  stackTools     AiStackTool[]
+  analytics      AnalyticsEvent[]
+  rankings       Ranking[]
+  updates        ToolUpdate[]
+  affiliateLinks AffiliateLink[]
+  campaigns      LaunchCampaign[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status])
+  @@index([ratingAvg, reviewCount])
+  @@index([trendingScore, growthRate])
+  @@fulltext([name, tagline, description])
+}
+
+model ToolCategory {
+  toolId     String
+  categoryId String
+  tool       Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, categoryId])
+}
+
+model MediaAsset {
+  id              String    @id @default(cuid())
+  ownerId         String?
+  toolId          String?
+  kind            MediaKind
+  bucket          String
+  path            String
+  publicUrl       String    @db.Text
+  altText         String?
+  width           Int?
+  height          Int?
+  durationSeconds Int?
+  metadata        Json?
+  tool            Tool?     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+}
+
+model Review {
+  id                 String       @id @default(cuid())
+  toolId             String
+  authorId           String?
+  reviewType         ReviewType   @default(user)
+  rating             Int
+  title              String
+  body               String       @db.Text
+  mediaAssetIds      Json?
+  helpfulCount       Int          @default(0)
+  voteScore          Int          @default(0)
+  trustScore         Int          @default(50)
+  aiSummary          String?      @db.Text
+  fakeReviewScore    Decimal      @default(0) @db.Decimal(5, 2)
+  isVerifiedReviewer Boolean      @default(false)
+  isPublished        Boolean      @default(true)
+  moderationStatus   String       @default("approved")
+  tool               Tool         @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  author             Profile?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  votes              ReviewVote[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([toolId, isPublished, createdAt])
+  @@index([authorId, createdAt])
+  @@fulltext([title, body])
+}
+
+model ReviewVote {
+  reviewId  String
+  userId    String
+  vote      Int
+  review    Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([reviewId, userId])
+}
+
+model Discussion {
+  id               String    @id @default(cuid())
+  toolId           String?
+  authorId         String?
+  title            String
+  body             String    @db.Text
+  voteScore        Int       @default(0)
+  commentCount     Int       @default(0)
+  isLocked         Boolean   @default(false)
+  isPinned         Boolean   @default(false)
+  moderationStatus String    @default("approved")
+  tool             Tool?     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  author           Profile?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  comments         Comment[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([toolId, voteScore])
+}
+
+model Comment {
+  id               String     @id @default(cuid())
+  discussionId     String
+  parentId         String?
+  authorId         String?
+  body             String     @db.Text
+  voteScore        Int        @default(0)
+  moderationStatus String     @default("approved")
+  discussion       Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  parent           Comment?   @relation("NestedComments", fields: [parentId], references: [id], onDelete: Cascade)
+  replies          Comment[]  @relation("NestedComments")
+  author           Profile?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([discussionId, parentId, createdAt])
+}
+
+model PremiumPlan {
+  id                  String         @id
+  name                String
+  description         String         @db.Text
+  monthlyPrice        Decimal        @default(0) @db.Decimal(10, 2)
+  yearlyPrice         Decimal        @default(0) @db.Decimal(10, 2)
+  badge               String?
+  features            Json
+  usageLimits         Json
+  stripeProductId     String?
+  stripeMonthlyPriceId String?
+  stripeYearlyPriceId String?
+  sortOrder           Int            @default(0)
+  enabled             Boolean        @default(true)
+  subscriptions       Subscription[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  planId               String
+  stripeCustomerId     String
+  stripeSubscriptionId String             @unique
+  status               SubscriptionStatus
+  cancelAtPeriodEnd    Boolean            @default(false)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  usage                Json?
+  user                 Profile            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                 PremiumPlan        @relation(fields: [planId], references: [id])
+  payments             Payment[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([userId, status])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  subscriptionId    String?
+  stripeInvoiceId   String?       @unique
+  stripeCustomerId  String?
+  amountDue         Int           @default(0)
+  amountPaid        Int           @default(0)
+  currency          String        @default("usd")
+  status            String?
+  hostedInvoiceUrl  String?       @db.Text
+  invoicePdf        String?       @db.Text
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now())
+}
+
+model Bookmark {
+  userId    String
+  toolId    String
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, toolId])
+}
+
+model AiStack {
+  id          String        @id @default(cuid())
+  ownerId     String
+  title       String
+  description String        @db.Text
+  isPublic    Boolean       @default(true)
+  owner       Profile       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tools       AiStackTool[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model AiStackTool {
+  stackId   String
+  toolId    String
+  sortOrder Int     @default(0)
+  notes     String? @db.Text
+  stack     AiStack @relation(fields: [stackId], references: [id], onDelete: Cascade)
+  tool      Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@id([stackId, toolId])
+}
+
+model CreatorProfile {
+  userId          String   @id
+  niche           String
+  followerCount   Int      @default(0)
+  monthlyEarnings Decimal  @default(0) @db.Decimal(12, 2)
+  leaderboardRank Int?
+  verifiedChannels Json
+  sponsorshipRate Decimal? @db.Decimal(10, 2)
+  user            Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model FounderProfile {
+  userId       String    @id
+  companyName  String
+  title        String
+  companyStage String?
+  verifiedAt   DateTime?
+  user         Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String    @db.Text
+  actionUrl String?   @db.Text
+  readAt    DateTime?
+  user      Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  toolId    String?
+  eventName String
+  properties Json?
+  sessionId String?
+  ipHash    String?
+  userAgent String?  @db.Text
+  tool      Tool?    @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([toolId, eventName, createdAt])
+}
+
+model Ranking {
+  id            String   @id @default(cuid())
+  toolId        String
+  rankingType   String
+  score         Decimal  @db.Decimal(10, 2)
+  rank          Int
+  factors       Json?
+  tool          Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  calculatedAt  DateTime @default(now())
+
+  @@index([rankingType, rank])
+}
+
+model ToolUpdate {
+  id          String    @id @default(cuid())
+  toolId      String
+  authorId    String?
+  title       String
+  body        String    @db.Text
+  publishedAt DateTime?
+  tool        Tool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SocialAccount {
+  id               String    @id @default(cuid())
+  userId           String
+  provider         String
+  providerUserId   String
+  handle           String
+  profileUrl       String    @db.Text
+  followerCount    Int       @default(0)
+  engagementRate   Decimal   @default(0) @db.Decimal(6, 3)
+  credibilityScore Int       @default(50)
+  verifiedAt       DateTime?
+  metadata         Json?
+  user             Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([provider, providerUserId])
+  @@index([userId, provider])
+}
+
+model AffiliateLink {
+  id             String           @id @default(cuid())
+  toolId         String
+  creatorId      String?
+  url            String           @db.Text
+  commissionRate Decimal          @default(0) @db.Decimal(5, 2)
+  clicks         Int              @default(0)
+  conversions    Int              @default(0)
+  revenue        Decimal          @default(0) @db.Decimal(12, 2)
+  active         Boolean          @default(true)
+  tool           Tool             @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  creator        Profile?         @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  earnings       CreatorEarning[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model CreatorEarning {
+  id              String         @id @default(cuid())
+  creatorId       String
+  affiliateLinkId String?
+  source          String
+  amount          Decimal        @db.Decimal(12, 2)
+  currency        String         @default("usd")
+  status          String         @default("pending")
+  paidAt          DateTime?
+  creator         Profile        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  affiliateLink   AffiliateLink? @relation(fields: [affiliateLinkId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+
+  @@index([creatorId, createdAt])
+}
+
+model WebsiteSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model HomepageSection {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  config    Json
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  userId         String?
+  segments       Json
+  verifiedAt     DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model NewsletterCampaign {
+  id          String    @id @default(cuid())
+  title       String
+  subject     String
+  bodyMd      String    @db.Text
+  status      String    @default("draft")
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  metrics     Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Advertisement {
+  id        String    @id @default(cuid())
+  sponsorId String?
+  placement String
+  title     String
+  imageUrl  String?   @db.Text
+  targetUrl String    @db.Text
+  startsAt  DateTime
+  endsAt    DateTime
+  budget    Decimal   @default(0) @db.Decimal(12, 2)
+  status    String    @default("draft")
+  metrics   Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model LaunchCampaign {
+  id             String    @id @default(cuid())
+  toolId         String?
+  name           String
+  status         String    @default("draft")
+  startsAt       DateTime
+  endsAt         DateTime?
+  sponsorSlots   Int       @default(0)
+  bookedSponsors Int       @default(0)
+  config         Json?
+  tool           Tool?     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}

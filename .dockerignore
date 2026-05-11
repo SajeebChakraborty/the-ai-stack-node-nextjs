@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+!.env.production.example
+.next
+node_modules
+npm-debug.log
+Dockerfile
+docker-compose*.yml
+.git
+.gitignore
+README.md
+docs

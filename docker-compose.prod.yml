@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: theaistack-app
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  mysql:
+    image: mysql:8.4
+    container_name: theaistack-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: theaistack
+      MYSQL_USER: theaistack
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_this_mysql_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
+    volumes:
+      - theaistack_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:3306:3306"
+
+volumes:
+  theaistack_mysql:
