@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAlternatives, getToolBySlug, getToolReviews } from "@/lib/queries/tools";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getToolBySlug, getToolPageData } from "@/lib/queries/tools";
 import { ToolProfile } from "@/components/tool/tool-profile";
 
 type Props = {
@@ -33,10 +34,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ToolPage({ params }: Props) {
   const { slug } = await params;
-  const tool = await getToolBySlug(slug);
-  if (!tool) notFound();
+  const [pageData, currentUser] = await Promise.all([getToolPageData(slug), getCurrentUser()]);
+  if (!pageData) notFound();
 
-  const [toolReviews, alternatives] = await Promise.all([getToolReviews(slug), getAlternatives(slug)]);
+  const tool = pageData.tool;
+  const isOwner = Boolean(currentUser && tool.founderId && currentUser.id === tool.founderId);
+  const canCommunityInteract = Boolean(currentUser && !isOwner && ["user", "founder", "admin"].includes(currentUser.role));
+  const communityHelperText = currentUser
+    ? isOwner
+      ? "Community reviews and votes must come from users or other founders, not the claiming founder."
+      : undefined
+    : "Sign in as a user or another founder to review this tool and vote in discussions.";
 
-  return <ToolProfile tool={tool} toolReviews={toolReviews} alternatives={alternatives} />;
+  return (
+    <ToolProfile
+      alternatives={pageData.alternatives}
+      canCommunityInteract={canCommunityInteract}
+      communityHelperText={communityHelperText}
+      discussions={pageData.discussions}
+      tool={tool}
+      toolReviews={pageData.toolReviews}
+      updates={pageData.updates}
+    />
+  );
 }

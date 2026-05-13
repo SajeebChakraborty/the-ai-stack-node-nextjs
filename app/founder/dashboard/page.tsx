@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { BarChart3, MousePointerClick, SearchCheck, TrendingUp } from "lucide-react";
 import { requireUser } from "@/lib/auth/session";
+import { getFounderManagedTools } from "@/lib/queries/tools";
 import { tools } from "@/data/catalog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FounderDashboardActions } from "@/components/founder/founder-dashboard-actions";
+import { FounderListingManager } from "@/components/founder/founder-listing-manager";
 
 export const metadata: Metadata = {
   title: "Founder Dashboard",
@@ -12,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 export default async function FounderDashboardPage() {
-  await requireUser("/founder/dashboard");
+  const currentUser = await requireUser("/founder/dashboard", ["founder", "admin"]);
+  const managedTools = await getFounderManagedTools(currentUser.id);
   const tool = tools[0];
 
   return (
@@ -65,6 +68,9 @@ export default async function FounderDashboardPage() {
             ))}
           </CardContent>
         </Card>
+      </div>
+      <div className="mt-6">
+        <FounderListingManager tools={managedTools} />
       </div>
     </div>
   );

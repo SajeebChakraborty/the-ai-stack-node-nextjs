@@ -11,7 +11,7 @@ export function FounderDashboardActions({ primaryOnly = false }: { primaryOnly?:
   if (primaryOnly) {
     return (
       <div className="grid gap-2">
-        <Button onClick={() => setStatus("Claim request started. The admin team can verify ownership from the admin console.")}>Claim a listing</Button>
+        <Button onClick={() => setStatus("Use the listing manager below to claim a catalog slug and start publishing founder-owned content.")}>Claim a listing</Button>
         {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
       </div>
     );

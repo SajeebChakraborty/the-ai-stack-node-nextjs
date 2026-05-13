@@ -41,7 +41,7 @@ export type Review = {
   author: string;
   authorHandle: string;
   authorAvatar: string;
-  type: "user" | "creator" | "verified-social" | "editorial";
+  type: "user" | "creator" | "founder" | "verified-social" | "editorial";
   rating: number;
   title: string;
   body: string;

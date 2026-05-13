@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Filter, Search } from "lucide-react";
-import { categories, tools } from "@/data/catalog";
-import { sortTools } from "@/lib/utils/ranking";
+import type { Tool } from "@/types/domain";
 import { ToolCard } from "@/components/directory/tool-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { sortTools } from "@/lib/utils/ranking";
 
 export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: { initialCategory?: string; initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
@@ -17,6 +17,38 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
   const [sort, setSort] = useState<"trending" | "top-rated" | "fastest-growing" | "newest">("trending");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(9);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTools() {
+      try {
+        const response = await fetch("/api/tools");
+        const payload = (await response.json()) as { tools?: Tool[] };
+        if (!cancelled) {
+          setTools(payload.tools ?? []);
+        }
+      } catch {
+        if (!cancelled) {
+          setTools([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadTools();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = useMemo(() => Array.from(new Set(tools.flatMap((tool) => tool.categories))).sort(), [tools]);
 
   const filteredTools = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -91,6 +123,12 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
           <ToolCard key={tool.id} tool={tool} />
         ))}
       </div>
+
+      {!loading && filteredTools.length === 0 ? (
+        <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+          No approved claimed listings match the current filters yet.
+        </div>
+      ) : null}
 
       {visibleCount < filteredTools.length ? (
         <Button variant="outline" className="mx-auto" onClick={() => setVisibleCount((value) => value + 9)}>

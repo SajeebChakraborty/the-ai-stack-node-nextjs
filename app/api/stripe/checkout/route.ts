@@ -31,15 +31,17 @@ export async function POST(request: Request) {
 
   try {
     await prisma.profile.upsert({
-      where: { externalAuthId: authUser.id },
+      where: { id: authUser.id },
       update: {
         email: authUser.email,
-        fullName: authUser.name
+        fullName: authUser.name,
+        role: authUser.role
       },
       create: {
-        externalAuthId: authUser.id,
+        id: authUser.id,
         email: authUser.email,
-        fullName: authUser.name
+        fullName: authUser.name,
+        role: authUser.role
       }
     });
   } catch {

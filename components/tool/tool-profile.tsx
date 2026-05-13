@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, MessageSquare, PlayCircle, ShieldCheck, Star, ThumbsUp } from "lucide-react";
 import type { Review, Tool } from "@/types/domain";
+import type { ToolDiscussion, ToolUpdateItem } from "@/lib/queries/tools";
 import { toolJsonLd } from "@/lib/seo/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +11,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToolActions } from "@/components/tool/tool-actions";
 import { ReviewForm } from "@/components/tool/review-form";
+import { DiscussionForm } from "@/components/tool/discussion-form";
+import { DiscussionVoteButtons } from "@/components/tool/discussion-vote-buttons";
 
-export function ToolProfile({ tool, toolReviews, alternatives }: { tool: Tool; toolReviews: Review[]; alternatives: Tool[] }) {
+export function ToolProfile({
+  alternatives,
+  canCommunityInteract,
+  communityHelperText,
+  discussions,
+  tool,
+  toolReviews,
+  updates
+}: {
+  alternatives: Tool[];
+  canCommunityInteract: boolean;
+  communityHelperText?: string;
+  discussions: ToolDiscussion[];
+  tool: Tool;
+  toolReviews: Review[];
+  updates: ToolUpdateItem[];
+}) {
   return (
     <>
       <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(toolJsonLd(tool)) }} />
@@ -141,82 +160,114 @@ export function ToolProfile({ tool, toolReviews, alternatives }: { tool: Tool; t
           <TabsContent value="reviews">
             <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
               <div className="space-y-4">
-                {toolReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
+                {toolReviews.length ? toolReviews.map((review) => <ReviewCard key={review.id} review={review} />) : <EmptyStateCard message="No community reviews yet. The first review should come from a user or another founder, not the listing owner." title="No reviews yet" />}
               </div>
               <Card>
                 <CardHeader>
                   <CardTitle>Write a review</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ReviewForm toolName={tool.name} />
+                  <ReviewForm canReview={canCommunityInteract} helperText={communityHelperText} toolSlug={tool.slug} />
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
           <TabsContent value="videos">
-            <div className="grid gap-4 md:grid-cols-2">
-              {tool.videos.map((video) => (
-                <Card key={video.title} className="overflow-hidden">
-                  <div className="aspect-video bg-secondary">
-                    <iframe title={video.title} src={video.embedUrl} className="h-full w-full" allowFullScreen />
-                  </div>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="font-medium">{video.title}</div>
-                    <Badge variant="secondary">
-                      <PlayCircle className="mr-1 h-3 w-3" />
-                      {video.duration}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {tool.videos.length ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {tool.videos.map((video) => (
+                  <Card key={video.title} className="overflow-hidden">
+                    <div className="aspect-video bg-secondary">
+                      <iframe title={video.title} src={video.embedUrl} className="h-full w-full" allowFullScreen />
+                    </div>
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="font-medium">{video.title}</div>
+                      <Badge variant="secondary">
+                        <PlayCircle className="mr-1 h-3 w-3" />
+                        {video.duration}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <EmptyStateCard message="The claiming founder has not attached product videos yet." title="No videos yet" />
+            )}
           </TabsContent>
           <TabsContent value="alternatives">
-            <div className="grid gap-4 md:grid-cols-3">
-              {alternatives.map((alternative) => (
-                <Card key={alternative.id}>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold">{alternative.name}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">{alternative.tagline}</p>
-                    <Button asChild variant="outline" size="sm" className="mt-4">
-                      <Link href={`/tools/${alternative.slug}`}>Compare</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {alternatives.length ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                {alternatives.map((alternative) => (
+                  <Card key={alternative.id}>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold">{alternative.name}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">{alternative.tagline}</p>
+                      <Button asChild variant="outline" size="sm" className="mt-4">
+                        <Link href={`/tools/${alternative.slug}`}>Compare</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <EmptyStateCard message="Alternatives will appear here after other founders claim listings in the same category." title="No claimed alternatives yet" />
+            )}
           </TabsContent>
           <TabsContent value="discussions">
-            <Card>
-              <CardContent className="space-y-4 p-5">
-                {["Best implementation workflow?", "How does pricing scale for larger teams?", "Share migration notes from legacy tools"].map((topic, index) => (
-                  <div key={topic} className="flex items-center justify-between rounded-md border p-4">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      <div>
-                        <div className="font-medium">{topic}</div>
-                        <div className="text-xs text-muted-foreground">{18 - index * 4} nested comments · moderated</div>
-                      </div>
-                    </div>
-                    <Badge variant="secondary">{128 - index * 31} votes</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+              <div className="space-y-4">
+                {discussions.length ? (
+                  discussions.map((discussion) => (
+                    <Card key={discussion.id}>
+                      <CardContent className="space-y-4 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <MessageSquare className="mt-1 h-5 w-5 text-primary" />
+                            <div>
+                              <div className="font-medium">{discussion.title}</div>
+                              <div className="mt-1 text-sm text-muted-foreground">{discussion.body}</div>
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                {discussion.authorName} · {discussion.authorRole} · {discussion.commentCount} comments
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <DiscussionVoteButtons canVote={canCommunityInteract} discussionId={discussion.id} helperText={communityHelperText} voteScore={discussion.voteScore} />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <EmptyStateCard message="Discussions open up once users and other founders begin asking implementation and pricing questions." title="No discussions yet" />
+                )}
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Start a discussion</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DiscussionForm canPost={canCommunityInteract} helperText={communityHelperText} toolSlug={tool.slug} />
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           <TabsContent value="updates">
-            <Card>
-              <CardContent className="space-y-4 p-5">
-                {["SOC 2 dashboard export shipped", "Founder AMA scheduled", "New affiliate campaign approved"].map((update, index) => (
-                  <div key={update} className="rounded-md border p-4">
-                    <div className="font-medium">{update}</div>
-                    <div className="text-sm text-muted-foreground">{index + 2} days ago by {tool.founder.name}</div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            {updates.length ? (
+              <Card>
+                <CardContent className="space-y-4 p-5">
+                  {updates.map((update) => (
+                    <div key={update.id} className="rounded-md border p-4">
+                      <div className="font-medium">{update.title}</div>
+                      <div className="mt-2 text-sm text-muted-foreground">{update.body}</div>
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        {formatRelativeDate(update.publishedAt ?? update.createdAt)} by {update.authorName}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : (
+              <EmptyStateCard message="Founder updates appear here after the claiming founder publishes release notes, launch notes, and roadmap news." title="No founder updates yet" />
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -256,4 +307,28 @@ function ReviewCard({ review }: { review: Review }) {
       </CardContent>
     </Card>
   );
+}
+
+function EmptyStateCard({ message, title }: { message: string; title: string }) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="font-medium">{title}</div>
+        <div className="mt-2 text-sm text-muted-foreground">{message}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatRelativeDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
 }

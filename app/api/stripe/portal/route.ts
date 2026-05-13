@@ -14,9 +14,7 @@ export async function POST(request: Request) {
   try {
     subscription = await prisma.subscription.findFirst({
       where: {
-        user: {
-          externalAuthId: authUser.id
-        }
+        userId: authUser.id
       },
       orderBy: {
         createdAt: "desc"

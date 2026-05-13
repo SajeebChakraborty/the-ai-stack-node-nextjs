@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BarChart3, CreditCard, Edit3, Eye, Flag, Globe2, LayoutDashboard, Megaphone, Newspaper, ShieldCheck, Star, Users } from "lucide-react";
 import type { Awaited } from "@/types/utility";
 import { getAdminOverview } from "@/lib/queries/admin";
@@ -35,13 +36,26 @@ const adminSections = [
 ];
 
 export function AdminConsole({ data }: { data: AdminData }) {
+  const router = useRouter();
   const [maintenanceMode, setMaintenanceMode] = useState(data.siteSettings.maintenanceMode);
   const [planQuery, setPlanQuery] = useState("");
   const [plans, setPlans] = useState<PremiumPlan[]>(data.premiumPlans);
+  const [pendingClaims, setPendingClaims] = useState(data.pendingClaims);
   const filteredPlans = useMemo(
     () => plans.filter((plan) => plan.name.toLowerCase().includes(planQuery.toLowerCase())),
     [plans, planQuery]
   );
+
+  async function approveClaim(toolId: string) {
+    const response = await fetch(`/api/admin/tools/${toolId}/approval`, {
+      method: "POST"
+    });
+
+    if (response.ok) {
+      setPendingClaims((current) => current.filter((claim) => claim.id !== toolId));
+      router.refresh();
+    }
+  }
 
   return (
     <Tabs defaultValue="overview" className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -83,7 +97,7 @@ export function AdminConsole({ data }: { data: AdminData }) {
           <CrudPanel title="Manage users" description="Roles, trust scores, social verification, notifications, suspension state, and account security." items={["User role matrix", "Connected social accounts", "Trust and credibility score", "Notification preferences"]} />
         </TabsContent>
         <TabsContent value="tools" className="mt-0">
-          <TablePanel title="Manage tools" rows={data.tools.map((tool) => [tool.name, tool.pricingModel, tool.verified ? "Verified" : "Unverified", `${tool.reviewCount} reviews`])} />
+          <TablePanel title="Manage approved tools" rows={data.tools.map((tool) => [tool.name, tool.pricingModel, tool.verified ? "Verified" : "Unverified", `${tool.reviewCount} reviews`])} />
         </TabsContent>
         <TabsContent value="reviews" className="mt-0">
           <TablePanel title="Manage reviews" rows={data.reviews.map((review) => [review.title, review.type, `${review.rating} stars`, `${review.trustScore} trust`])} />
@@ -92,7 +106,34 @@ export function AdminConsole({ data }: { data: AdminData }) {
           <TablePanel title="Creator leaderboard" rows={data.creators.map((creator) => [`#${creator.rank} ${creator.name}`, creator.niche, `${creator.trustScore} trust`, `$${creator.monthlyEarnings.toLocaleString()}/mo`])} />
         </TabsContent>
         <TabsContent value="founders" className="mt-0">
-          <CrudPanel title="Founder management" description="Claim approvals, company seats, founder verification, listing ownership, and support escalation." items={["Claim requests", "Company profiles", "Founder replies", "Competitor insight access"]} />
+          <div className="grid gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Claim approvals</CardTitle>
+                <p className="text-sm text-muted-foreground">Approve founder-created listings before they appear in the public directory.</p>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {pendingClaims.length ? (
+                  pendingClaims.map((claim) => (
+                    <div key={claim.id} className="flex items-center justify-between gap-4 rounded-md border p-4">
+                      <div>
+                        <div className="font-medium">{claim.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {claim.slug} · submitted by {claim.founderName}
+                        </div>
+                      </div>
+                      <AdminActionButton variant="outline" size="sm" doneLabel="Approved" onClick={() => approveClaim(claim.id)}>
+                        Approve
+                      </AdminActionButton>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-md border p-4 text-sm text-muted-foreground">No pending claimed listings right now.</div>
+                )}
+              </CardContent>
+            </Card>
+            <CrudPanel title="Founder management" description="Claim approvals, company seats, founder verification, listing ownership, and support escalation." items={["Company profiles", "Founder replies", "Competitor insight access", "Escalations"]} />
+          </div>
         </TabsContent>
         <TabsContent value="subscriptions" className="mt-0">
           <TablePanel title="Subscription analytics" rows={data.subscriptions.map((sub) => [sub.company, sub.plan, sub.status, `$${sub.mrr}/mo`, sub.renewal])} />

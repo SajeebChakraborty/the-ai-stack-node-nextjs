@@ -60,6 +60,10 @@ model Profile {
   externalAuthId     String?            @unique
   email              String             @unique
   fullName           String?
+  passwordHash       String?
+  emailVerifiedAt    DateTime?
+  emailVerificationTokenHash String?
+  emailVerificationExpiresAt DateTime?
   handle             String?            @unique
   avatarUrl          String?            @db.Text
   role               Role               @default(user)
@@ -73,6 +77,7 @@ model Profile {
   tools              Tool[]             @relation("FounderTools")
   reviews            Review[]
   discussions        Discussion[]
+  discussionVotes    DiscussionVote[]
   comments           Comment[]
   bookmarks          Bookmark[]
   stacks             AiStack[]
@@ -225,11 +230,23 @@ model Discussion {
   moderationStatus String    @default("approved")
   tool             Tool?     @relation(fields: [toolId], references: [id], onDelete: Cascade)
   author           Profile?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  votes            DiscussionVote[]
   comments         Comment[]
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   @@index([toolId, voteScore])
+}
+
+model DiscussionVote {
+  discussionId String
+  userId       String
+  vote         Int
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  user         Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([discussionId, userId])
 }
 
 model Comment {

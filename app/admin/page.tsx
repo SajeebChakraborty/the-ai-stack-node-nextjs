@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  await requireUser("/admin");
+  await requireUser("/admin", ["admin"]);
   const data = await getAdminOverview();
 
   return (
