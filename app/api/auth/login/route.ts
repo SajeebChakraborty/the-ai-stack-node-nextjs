@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPortalAccessError, type AuthPortal } from "@/lib/auth/portals";
 import { getDefaultHomeForRole, replaceUserSession } from "@/lib/auth/session";
+import { databaseErrorMessage } from "@/lib/db/database-error";
 import { requireDatabaseUrl } from "@/lib/db/load-env";
 import { prisma } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
@@ -73,17 +74,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("User login database error:", error);
-
-    if (error instanceof Error && error.message.includes("DATABASE_URL is missing")) {
-      return NextResponse.json(
-        {
-          error:
-            "Server DATABASE_URL is not configured. Add it to .env.production in the site root and restart the Node app."
-        },
-        { status: 503 }
-      );
-    }
-
-    return NextResponse.json({ error: "Login failed. Check the MySQL configuration and try again." }, { status: 503 });
+    return NextResponse.json({ error: databaseErrorMessage(error) }, { status: 503 });
   }
 }

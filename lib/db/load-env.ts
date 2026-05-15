@@ -11,20 +11,35 @@ import { loadEnvConfig } from "@next/env";
 const ENV_FILE_NAMES = [".env.production.local", ".env.local", ".env.production", ".env"] as const;
 
 function resolveEnvRoot(): string {
+  const explicit = process.env.PROJECT_ENV_ROOT?.trim();
+  if (explicit && fs.existsSync(explicit)) {
+    return explicit;
+  }
+
   let dir = process.cwd();
+  let projectRoot = process.cwd();
+
   for (let i = 0; i < 12; i++) {
+    if (
+      fs.existsSync(path.join(dir, ".env.production")) ||
+      fs.existsSync(path.join(dir, ".env.production.local"))
+    ) {
+      return dir;
+    }
+
     for (const name of ENV_FILE_NAMES) {
       if (fs.existsSync(path.join(dir, name))) {
         return dir;
       }
     }
+
     if (
       fs.existsSync(path.join(dir, "next.config.ts")) ||
       fs.existsSync(path.join(dir, "next.config.mjs")) ||
       fs.existsSync(path.join(dir, "next.config.js")) ||
       fs.existsSync(path.join(dir, "package.json"))
     ) {
-      return dir;
+      projectRoot = dir;
     }
 
     const parent = path.dirname(dir);
@@ -34,7 +49,7 @@ function resolveEnvRoot(): string {
     dir = parent;
   }
 
-  return process.cwd();
+  return projectRoot;
 }
 
 function parseEnvFile(filePath: string): Record<string, string> {
