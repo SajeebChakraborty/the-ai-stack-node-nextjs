@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireDatabaseUrl } from "@/lib/db/load-env";
 import { prisma } from "@/lib/db/prisma";
 import { getPortalAccessError } from "@/lib/auth/portals";
 import { replaceUserSession } from "@/lib/auth/session";
@@ -47,6 +48,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    requireDatabaseUrl();
+
     const profile = await prisma.profile.upsert({
       where: {
         email: adminEmail
@@ -80,7 +83,19 @@ export async function POST(request: Request) {
     return NextResponse.json({
       redirectTo: sanitizeNextPath(payload.data.next)
     });
-  } catch {
+  } catch (error) {
+    console.error("Admin login database error:", error);
+
+    if (error instanceof Error && error.message.includes("DATABASE_URL is missing")) {
+      return NextResponse.json(
+        {
+          error:
+            "Server DATABASE_URL is not configured. Add it to .env.production in the site root and restart the Node app."
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ error: "MySQL database is unavailable for admin login." }, { status: 503 });
   }
 }
