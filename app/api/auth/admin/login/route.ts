@@ -27,14 +27,19 @@ function sanitizeNextPath(next: string | undefined) {
   return next?.startsWith("/") ? next : "/admin/dashboard";
 }
 
+function adminEnvCredential(value: string | undefined, fallback: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+}
+
 export async function POST(request: Request) {
   const payload = adminLoginSchema.safeParse(await request.json());
   if (!payload.success) {
     return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
   }
 
-  const adminEmail = process.env.ADMIN_LOGIN_EMAIL ?? "admin@gmail.com";
-  const adminPassword = process.env.ADMIN_LOGIN_PASSWORD ?? "12345678";
+  const adminEmail = adminEnvCredential(process.env.ADMIN_LOGIN_EMAIL, "admin@gmail.com");
+  const adminPassword = adminEnvCredential(process.env.ADMIN_LOGIN_PASSWORD, "12345678");
   const requestedEmail = payload.data.email.trim().toLowerCase();
 
   if (!safeEqual(requestedEmail, adminEmail.toLowerCase()) || !safeEqual(payload.data.password, adminPassword)) {
