@@ -7,6 +7,8 @@ import { requireDatabaseUrl } from "@/lib/db/load-env";
 import { prisma } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 
+export const runtime = "nodejs";
+
 const loginSchema = z.object({
   email: z.string().trim().email(),
   next: z.string().optional(),

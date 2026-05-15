@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getPortalAccessError } from "@/lib/auth/portals";
 import { replaceUserSession } from "@/lib/auth/session";
 
+export const runtime = "nodejs";
+
 const adminLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

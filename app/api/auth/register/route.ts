@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Role } from "@/types/domain";
+import { databaseErrorMessage, isProbablyDatabaseConnectivityError } from "@/lib/db/database-error";
 import { prisma } from "@/lib/db/prisma";
 import { sendVerificationEmail } from "@/lib/auth/email-verification";
 import { hashPassword } from "@/lib/auth/password";
+
+export const runtime = "nodejs";
 
 const registrationSchema = z.object({
   email: z.string().trim().email(),
@@ -104,7 +107,46 @@ export async function POST(request: Request) {
     return NextResponse.json({
       message: "Registration successful. Check your email to verify your account before signing in."
     });
-  } catch {
-    return NextResponse.json({ error: "Registration failed. Check the MySQL and email configuration and try again." }, { status: 503 });
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    if (error instanceof Error) {
+      const msg = error.message;
+
+      if (msg.includes("SendGrid email is not configured")) {
+        return NextResponse.json(
+          {
+            error:
+              "Transactional email is not configured. Add SENDGRID_API_KEY and EMAIL_FROM (a verified sender in SendGrid) to .env.production on the server, restart the Node app, and try again."
+          },
+          { status: 503 }
+        );
+      }
+
+      if (msg.includes("SendGrid email failed")) {
+        return NextResponse.json(
+          {
+            error:
+              "The verification email was rejected by SendGrid. Confirm the API key, verify EMAIL_FROM in SendGrid, and check the SendGrid activity log for blocking or suppression."
+          },
+          { status: 502 }
+        );
+      }
+
+      const dbMsg = databaseErrorMessage(error);
+
+      // Avoid blaming MySQL when the failure was email/API — only surface DB wording when plausible.
+      if (isProbablyDatabaseConnectivityError(error) || msg.includes("DATABASE_URL")) {
+        return NextResponse.json({ error: dbMsg }, { status: 503 });
+      }
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "Registration could not be completed. Check server logs for details — often missing SendGrid vars (SENDGRID_API_KEY, EMAIL_FROM) or a database constraint error."
+      },
+      { status: 503 }
+    );
   }
 }
