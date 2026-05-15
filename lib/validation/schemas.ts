@@ -32,3 +32,27 @@ export const websiteSettingsSchema = z.object({
   maintenanceMode: z.boolean(),
   analyticsProvider: z.enum(["posthog", "plausible"])
 });
+
+export const premiumPlanWriteSchema = z.object({
+  id: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional(),
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().min(10).max(500),
+  monthlyPrice: z.number().min(0),
+  yearlyPrice: z.number().min(0),
+  badge: z.enum(["Popular", "Recommended", "Best Value"]).nullable().optional(),
+  features: z.array(z.string().trim().min(1)).min(1),
+  limits: z.record(z.union([z.number(), z.string()])).optional(),
+  claimedListings: z.union([z.number().int().min(0), z.literal("unlimited")]).optional(),
+  enabled: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional()
+});
+
+export const stripeSettingsSchema = z.object({
+  publishableKey: z.string().max(200).optional(),
+  secretKey: z.string().max(200).optional(),
+  webhookSecret: z.string().max(200).optional(),
+  defaultTaxRateId: z.string().max(120).optional()
+});

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getDefaultHomeForRole, setCurrentUserSession } from "@/lib/auth/session";
+import { getPortalAccessError, type AuthPortal } from "@/lib/auth/portals";
+import { getDefaultHomeForRole, replaceUserSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 
@@ -50,11 +51,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Verify your email before signing in." }, { status: 403 });
     }
 
-    if (payload.data.role === "founder" && profile.role !== "founder" && profile.role !== "admin") {
-      return NextResponse.json({ error: "This account is not registered as a founder account yet." }, { status: 403 });
+    const portal: AuthPortal = payload.data.role === "founder" ? "founder" : "user";
+    const portalError = getPortalAccessError(profile.role, portal);
+    if (portalError) {
+      return NextResponse.json({ error: portalError }, { status: 403 });
     }
 
-    await setCurrentUserSession({
+    await replaceUserSession({
       id: profile.id,
       email: profile.email,
       name: profile.fullName ?? profile.email.split("@")[0],

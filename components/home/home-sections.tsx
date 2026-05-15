@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Newspaper, PlayCircle, Quote, Rocket, Star, Trophy, Users } from "lucide-react";
 import { creators, news, reviews, tools } from "@/data/catalog";
@@ -9,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RemoteImage } from "@/components/ui/remote-image";
 
 export function HomeSections() {
   const trending = sortTools(tools, "trending");
@@ -21,7 +21,7 @@ export function HomeSections() {
         <SectionHeading eyebrow="Directory" title="Trending AI tools" actionHref="/directory" action="View directory" />
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {trending.slice(0, 3).map((tool) => (
-            <ToolCard key={tool.id} tool={tool} />
+            <ToolCard key={tool.id} tool={tool} analyticsSource="home" />
           ))}
         </div>
       </section>
@@ -34,7 +34,15 @@ export function HomeSections() {
               {topRated.slice(0, 2).map((tool) => (
                 <Card key={tool.id} className="overflow-hidden">
                   <CardContent className="flex gap-4 p-4">
-                    <Image src={tool.screenshots[0]} alt={`${tool.name} screenshot`} width={220} height={140} className="hidden aspect-video w-48 rounded-md object-cover sm:block" />
+                    {tool.screenshots[0] ? (
+                      <RemoteImage
+                        src={tool.screenshots[0]}
+                        alt={`${tool.name} screenshot`}
+                        width={220}
+                        height={140}
+                        className="hidden aspect-video w-48 rounded-md object-cover sm:block"
+                      />
+                    ) : null}
                     <div className="space-y-2">
                       <Badge variant="premium">
                         <Trophy className="mr-1 h-3 w-3" />
@@ -138,7 +146,17 @@ export function HomeSections() {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {latest.slice(0, 3).map((tool) => (
               <Card key={tool.id} className="overflow-hidden">
-                <Image src={tool.screenshots[0]} alt={`${tool.name} launch`} width={500} height={300} className="aspect-video w-full object-cover" />
+                {tool.screenshots[0] ? (
+                  <RemoteImage
+                    src={tool.screenshots[0]}
+                    alt={`${tool.name} launch`}
+                    width={500}
+                    height={300}
+                    className="aspect-video w-full object-cover"
+                  />
+                ) : (
+                  <div className="aspect-video w-full bg-secondary" />
+                )}
                 <CardContent className="p-4">
                   <Badge variant="secondary">
                     <Rocket className="mr-1 h-3 w-3" />

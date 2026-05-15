@@ -69,6 +69,8 @@ function getStatusFromSearchParams(error: string | null | undefined, message: st
       return { message: "Your Google account email must be verified before you can continue.", tone: "error" };
     case "google-account-conflict":
       return { message: "That Google account is already linked to another profile.", tone: "error" };
+    case "wrong-account-portal":
+      return { message: "This account belongs to a different login portal. Use the correct User, Founder, or Admin sign in page.", tone: "error" };
     case "verification-link-invalid":
       return { message: "That verification link is invalid or expired. Register again to receive a fresh email.", tone: "error" };
     default:

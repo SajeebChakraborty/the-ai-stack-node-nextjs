@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { AppShell } from "@/components/layout/app-shell";
+import { AppShellClient } from "@/components/layout/app-shell-client";
+import { AdminPanelHeader } from "@/components/layout/admin-panel-header";
+import { AuthAwareHeader } from "@/components/layout/auth-aware-header";
 import { AppProviders } from "@/components/providers/query-provider";
 import { siteSettings } from "@/data/catalog";
 import "./globals.css";
@@ -42,7 +44,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <body>
         <AppProviders>
-          <AppShell>{children}</AppShell>
+          <AppShellClient header={<AuthAwareHeader />} adminHeader={<AdminPanelHeader />}>
+            {children}
+          </AppShellClient>
         </AppProviders>
       </body>
     </html>

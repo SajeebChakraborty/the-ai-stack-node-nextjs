@@ -1,26 +1,28 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { premiumPlans } from "@/data/catalog";
 import { PlanActionButton } from "@/components/pricing/plan-action-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPublishedPremiumPlans } from "@/lib/queries/plans";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description: "Premium plans for founders, creators, agencies, and enterprise AI companies on TheAiStack."
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const premiumPlans = await getPublishedPremiumPlans();
+
   return (
     <div className="section-shell">
       <div className="mx-auto mb-10 max-w-3xl text-center">
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Premium packages</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-normal md:text-5xl">Turn AI discovery into a measurable growth channel.</h1>
         <p className="mt-4 text-muted-foreground">
-          Dynamic plans support monthly and yearly billing, Stripe product and price IDs, feature access control, usage limits, coupons, taxes, and plan lifecycle changes.
+          Plans are managed in the admin console and billed through Stripe with monthly or yearly subscriptions.
         </p>
       </div>
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className={`grid gap-4 ${premiumPlans.length >= 5 ? "lg:grid-cols-5" : "md:grid-cols-2 xl:grid-cols-4"}`}>
         {premiumPlans.map((plan) => (
           <Card key={plan.id} className={plan.badge ? "border-primary shadow-glow" : ""}>
             <CardHeader>

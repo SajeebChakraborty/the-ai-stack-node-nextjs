@@ -1,17 +1,19 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, CreditCard, Edit3, Eye, Flag, Globe2, LayoutDashboard, Megaphone, Newspaper, ShieldCheck, Star, Users } from "lucide-react";
+import { BarChart3, CreditCard, Eye, Flag, Globe2, LayoutDashboard, Megaphone, Newspaper, ShieldCheck, Star, Users } from "lucide-react";
 import type { Awaited } from "@/types/utility";
 import { getAdminOverview } from "@/lib/queries/admin";
-import type { PremiumPlan } from "@/types/domain";
 import { AdminActionButton } from "@/components/admin/admin-action-button";
+import { AdminMemberTable } from "@/components/admin/admin-member-table";
+import { AdminPlansPanel } from "@/components/admin/admin-plans-panel";
+// import { StripeSettingsForm } from "@/components/admin/stripe-settings-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+// import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type AdminData = Awaited<ReturnType<typeof getAdminOverview>>;
@@ -20,31 +22,25 @@ const adminSections = [
   "Overview",
   "Users",
   "Tools",
-  "Reviews",
-  "Creators",
+  // "Reviews",
+  // "Creators",
   "Founders",
   "Subscriptions",
-  "Plans",
-  "Homepage",
-  "Categories",
-  "Moderation",
-  "Newsletter",
-  "Analytics",
-  "Ads",
-  "Launches",
-  "Settings"
+  "Plans"
+  // "Homepage",
+  // "Categories",
+  // "Moderation",
+  // "Newsletter",
+  // "Analytics",
+  // "Ads",
+  // "Launches",
+  // "Settings"
 ];
 
 export function AdminConsole({ data }: { data: AdminData }) {
   const router = useRouter();
-  const [maintenanceMode, setMaintenanceMode] = useState(data.siteSettings.maintenanceMode);
-  const [planQuery, setPlanQuery] = useState("");
-  const [plans, setPlans] = useState<PremiumPlan[]>(data.premiumPlans);
+  // const [maintenanceMode, setMaintenanceMode] = useState(data.siteSettings.maintenanceMode);
   const [pendingClaims, setPendingClaims] = useState(data.pendingClaims);
-  const filteredPlans = useMemo(
-    () => plans.filter((plan) => plan.name.toLowerCase().includes(planQuery.toLowerCase())),
-    [plans, planQuery]
-  );
 
   async function approveClaim(toolId: string) {
     const response = await fetch(`/api/admin/tools/${toolId}/approval`, {
@@ -68,43 +64,71 @@ export function AdminConsole({ data }: { data: AdminData }) {
       </TabsList>
       <div className="min-w-0">
         <TabsContent value="overview" className="mt-0">
+          <p className="mb-4 text-sm text-muted-foreground">
+            Live database metrics · last {data.analytics.periodDays} days for traffic and revenue signals
+          </p>
           <div className="grid gap-4 md:grid-cols-4">
             {data.metrics.map((metric) => (
               <Card key={metric.label}>
                 <CardContent className="p-5">
                   <p className="text-sm text-muted-foreground">{metric.label}</p>
                   <div className="mt-2 text-3xl font-semibold">{metric.value}</div>
-                  <Badge variant="verified" className="mt-3">{metric.change}</Badge>
+                  <Badge variant="secondary" className="mt-3">
+                    {metric.change}
+                  </Badge>
                 </CardContent>
               </Card>
             ))}
           </div>
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             <ManagementCard icon={BarChart3} title="Payment analytics">
+              <MetricLine label="Stripe revenue (30d)" value={`$${data.analytics.paymentRevenue.toLocaleString()}`} />
               <MetricLine label="Revenue attributed to creators" value={`$${data.analytics.creatorAttributedRevenue.toLocaleString()}`} />
               <MetricLine label="Outbound conversion rate" value={`${data.analytics.conversionRate}%`} />
-              <MetricLine label="Tool profile traffic" value={data.analytics.traffic.toLocaleString()} />
+              <MetricLine label="Listing & profile traffic" value={data.analytics.traffic.toLocaleString()} />
+              <MetricLine label="Outbound clicks" value={data.analytics.outboundClicks.toLocaleString()} />
             </ManagementCard>
             <ManagementCard icon={ShieldCheck} title="Operational queues">
-              <MetricLine label="Reviews needing moderation" value={String(data.reviews.length)} />
-              <MetricLine label="Launch campaigns" value={String(data.launchCampaigns.length)} />
+              <MetricLine label="Pending claim approvals" value={String(data.pendingClaims.length)} />
+              <MetricLine label="Reviews needing moderation" value={String(data.analytics.reviewsNeedingModeration)} />
+              <MetricLine
+                label="Active launch campaigns"
+                value={String(data.launchCampaigns.filter((campaign) => campaign.status === "active").length)}
+              />
               <MetricLine label="Active subscriptions" value={String(data.subscriptions.length)} />
+              <MetricLine label="Registered founders" value={String(data.analytics.totalFounders)} />
+              <MetricLine label="Registered users" value={String(data.analytics.totalUsers)} />
             </ManagementCard>
           </div>
         </TabsContent>
 
         <TabsContent value="users" className="mt-0">
-          <CrudPanel title="Manage users" description="Roles, trust scores, social verification, notifications, suspension state, and account security." items={["User role matrix", "Connected social accounts", "Trust and credibility score", "Notification preferences"]} />
+          <div className="grid gap-4">
+            <AdminMemberTable
+              title="Platform admins"
+              description="Admin accounts with full console access."
+              members={data.admins}
+              allowedRoles={["admin"]}
+              verificationMode="none"
+            />
+            <AdminMemberTable
+              title="Connected members"
+              description="Registered users and creators with connected social accounts."
+              members={data.users}
+              allowedRoles={["user", "creator", "moderator", "founder", "admin"]}
+              verificationMode="none"
+            />
+          </div>
         </TabsContent>
         <TabsContent value="tools" className="mt-0">
           <TablePanel title="Manage approved tools" rows={data.tools.map((tool) => [tool.name, tool.pricingModel, tool.verified ? "Verified" : "Unverified", `${tool.reviewCount} reviews`])} />
         </TabsContent>
-        <TabsContent value="reviews" className="mt-0">
+        {/* <TabsContent value="reviews" className="mt-0">
           <TablePanel title="Manage reviews" rows={data.reviews.map((review) => [review.title, review.type, `${review.rating} stars`, `${review.trustScore} trust`])} />
-        </TabsContent>
-        <TabsContent value="creators" className="mt-0">
+        </TabsContent> */}
+        {/* <TabsContent value="creators" className="mt-0">
           <TablePanel title="Creator leaderboard" rows={data.creators.map((creator) => [`#${creator.rank} ${creator.name}`, creator.niche, `${creator.trustScore} trust`, `$${creator.monthlyEarnings.toLocaleString()}/mo`])} />
-        </TabsContent>
+        </TabsContent> */}
         <TabsContent value="founders" className="mt-0">
           <div className="grid gap-4">
             <Card>
@@ -119,7 +143,7 @@ export function AdminConsole({ data }: { data: AdminData }) {
                       <div>
                         <div className="font-medium">{claim.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {claim.slug} · submitted by {claim.founderName}
+                          {claim.slug} Â· submitted by {claim.founderName}
                         </div>
                       </div>
                       <AdminActionButton variant="outline" size="sm" doneLabel="Approved" onClick={() => approveClaim(claim.id)}>
@@ -132,94 +156,23 @@ export function AdminConsole({ data }: { data: AdminData }) {
                 )}
               </CardContent>
             </Card>
-            <CrudPanel title="Founder management" description="Claim approvals, company seats, founder verification, listing ownership, and support escalation." items={["Company profiles", "Founder replies", "Competitor insight access", "Escalations"]} />
+            <AdminMemberTable
+              title="Founder accounts"
+              description="Founders become verified automatically after a completed plan payment."
+              members={data.founders}
+              showFounderFields
+              verificationMode="founder-payment"
+              allowedRoles={["founder", "admin"]}
+            />
           </div>
         </TabsContent>
         <TabsContent value="subscriptions" className="mt-0">
           <TablePanel title="Subscription analytics" rows={data.subscriptions.map((sub) => [sub.company, sub.plan, sub.status, `$${sub.mrr}/mo`, sub.renewal])} />
         </TabsContent>
         <TabsContent value="plans" className="mt-0">
-          <Card>
-            <CardHeader className="flex-row items-center justify-between gap-4">
-              <CardTitle>Premium package management</CardTitle>
-              <Button
-                onClick={() =>
-                  setPlans((current) => [
-                    ...current,
-                    {
-                      id: `custom-${current.length + 1}`,
-                      name: `Custom ${current.length + 1}`,
-                      description: "Admin-created premium package.",
-                      monthlyPrice: 149,
-                      yearlyPrice: 1490,
-                      badge: "Recommended",
-                      features: ["Custom listing limit", "Priority support", "Advanced analytics"],
-                      limits: { claimedListings: 10, analyticsDays: 365 },
-                      stripeProductId: "prod_custom",
-                      stripeMonthlyPriceId: "price_custom_monthly",
-                      stripeYearlyPriceId: "price_custom_yearly",
-                      enabled: true
-                    }
-                  ])
-                }
-              >
-                Create plan
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Input placeholder="Search plans" value={planQuery} onChange={(event) => setPlanQuery(event.target.value)} className="mb-4 max-w-sm" />
-              <div className="grid gap-3">
-                {filteredPlans.map((plan, index) => (
-                  <div key={plan.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[48px_1fr_auto] md:items-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-secondary">{index + 1}</div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">{plan.name}</span>
-                        {plan.badge ? <Badge variant="premium">{plan.badge}</Badge> : null}
-                        <Badge variant={plan.enabled ? "verified" : "secondary"}>{plan.enabled ? "Enabled" : "Disabled"}</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        ${plan.monthlyPrice}/mo · ${plan.yearlyPrice}/yr · {plan.features.join(", ")}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <AdminActionButton
-                        variant="outline"
-                        size="sm"
-                        doneLabel="Saved"
-                        onClick={() =>
-                          setPlans((current) =>
-                            current.map((item) => (item.id === plan.id ? { ...item, badge: item.badge ? undefined : "Recommended" } : item))
-                          )
-                        }
-                      >
-                        <Edit3 className="mr-2 h-4 w-4" />
-                        Edit
-                      </AdminActionButton>
-                      <AdminActionButton
-                        variant="ghost"
-                        size="sm"
-                        doneLabel="Moved"
-                        onClick={() =>
-                          setPlans((current) => {
-                            const index = current.findIndex((item) => item.id === plan.id);
-                            if (index <= 0) return current;
-                            const next = [...current];
-                            [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                            return next;
-                          })
-                        }
-                      >
-                        Reorder
-                      </AdminActionButton>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <AdminPlansPanel initialPlans={data.premiumPlans} />
         </TabsContent>
-        <TabsContent value="homepage" className="mt-0">
+        {/* <TabsContent value="homepage" className="mt-0">
           <CrudPanel title="Homepage sections" description="Control hero banners, featured tools, creator spotlight, testimonials, newsletter CTAs, and sponsored placements." items={["Hero banner", "Trending tools", "Featured reviews", "AI news rail"]} />
         </TabsContent>
         <TabsContent value="categories" className="mt-0">
@@ -240,7 +193,8 @@ export function AdminConsole({ data }: { data: AdminData }) {
         <TabsContent value="launches" className="mt-0">
           <TablePanel title="Launch campaigns" rows={data.launchCampaigns.map((campaign) => [campaign.name, campaign.status, campaign.startsAt, `${campaign.bookedSponsors} sponsors`])} />
         </TabsContent>
-        <TabsContent value="settings" className="mt-0">
+        <TabsContent value="settings" className="mt-0 space-y-4">
+          <StripeSettingsForm initial={data.stripeSettings} />
           <Card>
             <CardHeader>
               <CardTitle>Dynamic website settings</CardTitle>
@@ -262,7 +216,7 @@ export function AdminConsole({ data }: { data: AdminData }) {
               <AdminActionButton className="w-fit" doneLabel="Settings saved">Save settings and refresh cache</AdminActionButton>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
       </div>
     </Tabs>
   );

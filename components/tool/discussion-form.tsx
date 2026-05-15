@@ -7,12 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export function DiscussionForm({
-  canPost,
-  helperText,
+  blockedReason,
   toolSlug
 }: {
-  canPost: boolean;
-  helperText?: string;
+  blockedReason?: string;
   toolSlug: string;
 }) {
   const router = useRouter();
@@ -21,14 +19,25 @@ export function DiscussionForm({
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function showBlockedMessage() {
+    if (blockedReason) {
+      setStatus(blockedReason);
+    }
+  }
+
   async function submitDiscussion() {
-    if (!canPost) {
-      setStatus(helperText ?? "Only signed-in community members can open discussions.");
+    if (blockedReason) {
+      showBlockedMessage();
       return;
     }
 
-    if (title.trim().length < 4 || body.trim().length < 20) {
-      setStatus("Add a discussion title and at least 20 characters of context.");
+    if (title.trim().length < 4) {
+      setStatus("Add a discussion title (at least 4 characters).");
+      return;
+    }
+
+    if (body.trim().length < 20) {
+      setStatus("Add at least 20 characters of context for your discussion.");
       return;
     }
 
@@ -66,12 +75,14 @@ export function DiscussionForm({
 
   return (
     <div className="space-y-3">
-      <Input disabled={!canPost} onChange={(event) => setTitle(event.target.value)} placeholder="Start a discussion topic" value={title} />
-      <Textarea disabled={!canPost} onChange={(event) => setBody(event.target.value)} placeholder="Share your question, implementation notes, or comparison detail." value={body} />
-      <Button className="w-full" disabled={!canPost || isSubmitting} onClick={submitDiscussion}>
+      {blockedReason ? (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">{blockedReason}</p>
+      ) : null}
+      <Input onChange={(event) => setTitle(event.target.value)} placeholder="Start a discussion topic" value={title} />
+      <Textarea onChange={(event) => setBody(event.target.value)} placeholder="Share your question, implementation notes, or comparison detail." value={body} />
+      <Button className="w-full" disabled={isSubmitting} onClick={submitDiscussion}>
         {isSubmitting ? "Posting..." : "Start discussion"}
       </Button>
-      {helperText ? <p className="text-xs text-muted-foreground">{helperText}</p> : null}
       {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
     </div>
   );

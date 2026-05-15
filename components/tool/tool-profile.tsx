@@ -1,44 +1,54 @@
-import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, MessageSquare, PlayCircle, ShieldCheck, Star, ThumbsUp } from "lucide-react";
 import type { Review, Tool } from "@/types/domain";
 import type { ToolDiscussion, ToolUpdateItem } from "@/lib/queries/tools";
+import { buildToolReviewSummary } from "@/lib/tools/review-summary";
 import { toolJsonLd } from "@/lib/seo/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToolProfileViewTracker } from "@/components/analytics/tool-profile-view-tracker";
+import { RemoteImage } from "@/components/ui/remote-image";
+import { ToolLogo } from "@/components/ui/tool-logo";
 import { ToolActions } from "@/components/tool/tool-actions";
 import { ReviewForm } from "@/components/tool/review-form";
 import { DiscussionForm } from "@/components/tool/discussion-form";
 import { DiscussionVoteButtons } from "@/components/tool/discussion-vote-buttons";
 
+const fakeReviewToneClass = {
+  low: "text-emerald-500",
+  medium: "text-amber-500",
+  elevated: "text-rose-400"
+} as const;
+
 export function ToolProfile({
   alternatives,
-  canCommunityInteract,
-  communityHelperText,
+  communityBlockedReason,
   discussions,
   tool,
   toolReviews,
   updates
 }: {
   alternatives: Tool[];
-  canCommunityInteract: boolean;
-  communityHelperText?: string;
+  communityBlockedReason?: string;
   discussions: ToolDiscussion[];
   tool: Tool;
   toolReviews: Review[];
   updates: ToolUpdateItem[];
 }) {
+  const reviewSummary = buildToolReviewSummary(tool, toolReviews);
+
   return (
     <>
+      <ToolProfileViewTracker toolId={tool.id} />
       <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(toolJsonLd(tool)) }} />
       <section className="border-b bg-secondary/30">
         <div className="container grid gap-8 py-10 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
             <div className="flex flex-wrap items-start gap-4">
-              <Image src={tool.logoUrl} alt={`${tool.name} logo`} width={88} height={88} className="h-[88px] w-[88px] rounded-lg object-cover" />
+              <ToolLogo src={tool.logoUrl} alt={`${tool.name} logo`} width={88} height={88} className="h-[88px] w-[88px] rounded-lg object-cover" />
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <h1 className="text-4xl font-semibold tracking-normal">{tool.name}</h1>
@@ -61,10 +71,10 @@ export function ToolProfile({
             </div>
             <div className="grid gap-3 sm:grid-cols-4">
               {[
-                ["Rating", tool.rating],
+                ["Rating", tool.reviewCount ? tool.rating.toFixed(1) : "—"],
                 ["Reviews", tool.reviewCount],
                 ["Trust", `${tool.trustScore}/100`],
-                ["Growth", `+${tool.growthRate}%`]
+                ["Growth", `${tool.growthRate >= 0 ? "+" : ""}${tool.growthRate}%`]
               ].map(([label, value]) => (
                 <div key={label} className="rounded-lg border bg-background p-4">
                   <div className="text-2xl font-semibold">{value}</div>
@@ -117,19 +127,30 @@ export function ToolProfile({
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-muted-foreground">{tool.description}</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {tool.features.map((feature) => (
-                        <div key={feature} className="flex items-center gap-2 rounded-md border p-3 text-sm">
-                          <ShieldCheck className="h-4 w-4 text-primary" />
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
+                    {tool.features.length ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {tool.features.map((feature) => (
+                          <div key={feature} className="flex items-center gap-2 rounded-md border p-3 text-sm">
+                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            {feature}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">The founder has not added product features yet.</p>
+                    )}
                   </CardContent>
                 </Card>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {tool.screenshots.map((screenshot) => (
-                    <Image key={screenshot} src={screenshot} alt={`${tool.name} screenshot`} width={700} height={420} className="aspect-video rounded-lg border object-cover" />
+                    <RemoteImage
+                      key={screenshot}
+                      src={screenshot}
+                      alt={`${tool.name} screenshot`}
+                      width={700}
+                      height={420}
+                      className="aspect-video rounded-lg border object-cover"
+                    />
                   ))}
                 </div>
               </div>
@@ -138,12 +159,14 @@ export function ToolProfile({
                   <CardTitle>AI review summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <p>
-                    Reviewers praise {tool.name} for clear onboarding, measurable workflow gains, and credible founder engagement. The most common buyer fit is{" "}
-                    {tool.categories.slice(0, 2).join(" and ")} teams evaluating tools with proof requirements.
-                  </p>
+                  <p>{reviewSummary.summary}</p>
+                  {reviewSummary.highlights.map((highlight) => (
+                    <p key={highlight}>{highlight}</p>
+                  ))}
                   <div className="rounded-md border bg-secondary/40 p-3">
-                    Fake-review risk: <span className="font-semibold text-emerald-500">Low</span>. Signals include verified social accounts, natural review velocity, and consistent buyer context.
+                    Fake-review risk:{" "}
+                    <span className={`font-semibold ${fakeReviewToneClass[reviewSummary.fakeReviewTone]}`}>{reviewSummary.fakeReviewLabel}</span>
+                    . Based on live review count, verified reviewer share, and listing verification status.
                   </div>
                   <div className="space-y-2">
                     {tool.faqs.map((faq) => (
@@ -167,7 +190,7 @@ export function ToolProfile({
                   <CardTitle>Write a review</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ReviewForm canReview={canCommunityInteract} helperText={communityHelperText} toolSlug={tool.slug} />
+                  <ReviewForm blockedReason={communityBlockedReason} toolSlug={tool.slug} />
                 </CardContent>
               </Card>
             </div>
@@ -232,7 +255,7 @@ export function ToolProfile({
                             </div>
                           </div>
                         </div>
-                        <DiscussionVoteButtons canVote={canCommunityInteract} discussionId={discussion.id} helperText={communityHelperText} voteScore={discussion.voteScore} />
+                        <DiscussionVoteButtons blockedReason={communityBlockedReason} discussionId={discussion.id} voteScore={discussion.voteScore} />
                       </CardContent>
                     </Card>
                   ))
@@ -245,7 +268,7 @@ export function ToolProfile({
                   <CardTitle>Start a discussion</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <DiscussionForm canPost={canCommunityInteract} helperText={communityHelperText} toolSlug={tool.slug} />
+                  <DiscussionForm blockedReason={communityBlockedReason} toolSlug={tool.slug} />
                 </CardContent>
               </Card>
             </div>

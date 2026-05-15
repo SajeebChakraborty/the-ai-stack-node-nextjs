@@ -8,12 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export function ReviewForm({
-  canReview,
-  helperText,
+  blockedReason,
   toolSlug
 }: {
-  canReview: boolean;
-  helperText?: string;
+  blockedReason?: string;
   toolSlug: string;
 }) {
   const router = useRouter();
@@ -23,14 +21,30 @@ export function ReviewForm({
   const [status, setStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function showBlockedMessage() {
+    if (blockedReason) {
+      setStatus(blockedReason);
+    }
+  }
+
+  function selectRating(value: number) {
+    if (blockedReason) {
+      showBlockedMessage();
+      return;
+    }
+
+    setRating(value);
+    setStatus(null);
+  }
+
   async function submitReview() {
-    if (!canReview) {
-      setStatus(helperText ?? "Only signed-in community members can review this listing.");
+    if (blockedReason) {
+      showBlockedMessage();
       return;
     }
 
     if (title.trim().length < 4) {
-      setStatus("Add a short review title.");
+      setStatus("Add a short review title (at least 4 characters).");
       return;
     }
 
@@ -74,20 +88,23 @@ export function ReviewForm({
 
   return (
     <div className="space-y-3">
+      {blockedReason ? (
+        <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">{blockedReason}</p>
+      ) : null}
       <div className="flex gap-1 text-amber-500">
         {Array.from({ length: 5 }).map((_, index) => (
-          <button key={index} type="button" aria-label={`${index + 1} stars`} disabled={!canReview} onClick={() => setRating(index + 1)}>
+          <button key={index} type="button" aria-label={`${index + 1} stars`} onClick={() => selectRating(index + 1)}>
             <Star className={index < rating ? "h-5 w-5 fill-current" : "h-5 w-5"} />
           </button>
         ))}
       </div>
-      <Input disabled={!canReview} onChange={(event) => setTitle(event.target.value)} placeholder="Summarize your review" value={title} />
-      <Textarea disabled={!canReview} value={body} onChange={(event) => setBody(event.target.value)} placeholder="Share your implementation context, results, caveats, and proof." />
-      <Button className="w-full" disabled={isSubmitting || !canReview} onClick={submitReview}>
+      <Input onChange={(event) => setTitle(event.target.value)} placeholder="Summarize your review" value={title} />
+      <Textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Share your implementation context, results, caveats, and proof." />
+      <Button className="w-full" disabled={isSubmitting} onClick={submitReview}>
         {isSubmitting ? "Submitting..." : "Submit verified review"}
       </Button>
-      {helperText ? <p className="text-xs text-muted-foreground">{helperText}</p> : null}
       {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
     </div>
   );
 }
+

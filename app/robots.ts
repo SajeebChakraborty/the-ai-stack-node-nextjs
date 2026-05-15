@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/api/stripe/webhook"]
+      disallow: ["/admin", "/founder", "/api/stripe/webhook"]
     },
     sitemap: `${baseUrl}/sitemap.xml`
   };

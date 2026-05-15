@@ -6,14 +6,12 @@ import { ArrowBigDown, ArrowBigUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function DiscussionVoteButtons({
-  canVote,
+  blockedReason,
   discussionId,
-  helperText,
   voteScore
 }: {
-  canVote: boolean;
+  blockedReason?: string;
   discussionId: string;
-  helperText?: string;
   voteScore: number;
 }) {
   const router = useRouter();
@@ -21,8 +19,8 @@ export function DiscussionVoteButtons({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function submitVote(vote: 1 | -1) {
-    if (!canVote) {
-      setStatus(helperText ?? "Only signed-in community members can vote.");
+    if (blockedReason) {
+      setStatus(blockedReason);
       return;
     }
 
@@ -65,7 +63,7 @@ export function DiscussionVoteButtons({
         </Button>
         <span className="text-sm text-muted-foreground">{voteScore} votes</span>
       </div>
-      {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+      {status ? <p className="text-xs text-amber-200">{status}</p> : null}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CreatorDashboardPage() {
-  await requireUser("/creator/dashboard");
+  await requireUser("/creator/dashboard", ["creator"]);
   const creator = creators[0];
 
   return (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { syncToolEngagementMetrics } from "@/lib/analytics/tool-metrics";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -111,6 +112,8 @@ export async function POST(request: Request, context: Context) {
       reviewCount: aggregates._count.id
     }
   });
+
+  await syncToolEngagementMetrics([tool.id]);
 
   return NextResponse.json({
     message: "Review submitted."

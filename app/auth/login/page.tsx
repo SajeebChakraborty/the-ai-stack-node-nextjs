@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const nextPath = next?.startsWith("/") ? next : "/directory";
   const user = await getCurrentUser();
   if (user) {
-    redirect(user.role === "user" ? nextPath : getDefaultHomeForRole(user.role));
+    redirect(user.role === "user" || user.role === "creator" || user.role === "moderator" ? nextPath : getDefaultHomeForRole(user.role));
   }
 
   return (

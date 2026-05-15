@@ -6,7 +6,8 @@ import {
   getDefaultPathForGoogleRole,
   getGoogleLoginPath
 } from "@/lib/auth/google";
-import { setCurrentUserSession } from "@/lib/auth/session";
+import { getPortalAccessError, type AuthPortal } from "@/lib/auth/portals";
+import { replaceUserSession } from "@/lib/auth/session";
 
 function buildErrorRedirect(request: Request, loginPath: string, nextPath: string, error: string) {
   const redirectUrl = new URL(loginPath, request.url);
@@ -61,10 +62,14 @@ export async function GET(request: Request) {
     }
 
     const existingProfile = existingByExternalId ?? existingByEmail;
-    const role =
-      existingProfile?.role && existingProfile.role !== "user"
-        ? existingProfile.role
-        : state.role;
+    const requestedPortal: AuthPortal = requestedRole === "founder" ? "founder" : "user";
+    const resolvedRole = existingProfile?.role ?? requestedRole;
+    const portalError = getPortalAccessError(resolvedRole, requestedPortal);
+    if (portalError) {
+      return buildErrorRedirect(request, loginPath, nextPath, "wrong-account-portal");
+    }
+
+    const role = resolvedRole;
 
     const hydratedProfile = existingProfile
       ? await prisma.profile.update({
@@ -111,7 +116,7 @@ export async function GET(request: Request) {
       });
     }
 
-    await setCurrentUserSession({
+    await replaceUserSession({
       id: hydratedProfile.id,
       email: hydratedProfile.email,
       name: hydratedProfile.fullName ?? hydratedProfile.email.split("@")[0],

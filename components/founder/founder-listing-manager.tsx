@@ -1,39 +1,103 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ClaimFeedbackDialog } from "@/components/founder/claim-feedback-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import type { FounderEntitlementsView } from "@/types/founder";
 import type { FounderManagedTool } from "@/lib/queries/tools";
+import { CREATE_CLAIM_SECTION_ID, scrollToCreateClaimSection } from "@/lib/founder/claim-section";
+import { validateClaimForm, type ClaimFormValues } from "@/lib/validation/claim-form";
 
-export function FounderListingManager({ tools }: { tools: FounderManagedTool[] }) {
+export function FounderListingManager({
+  tools,
+  entitlements
+}: {
+  tools: FounderManagedTool[];
+  entitlements: FounderEntitlementsView;
+}) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [description, setDescription] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [affiliateUrl, setAffiliateUrl] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [categories, setCategories] = useState("");
-  const [features, setFeatures] = useState("");
-  const [pricingModel, setPricingModel] = useState<"free" | "freemium" | "paid" | "usage-based" | "enterprise">("freemium");
-  const [startingPrice, setStartingPrice] = useState("0");
-  const [screenshotUrls, setScreenshotUrls] = useState("");
-  const [videoUrls, setVideoUrls] = useState("");
-  const [socialX, setSocialX] = useState("");
-  const [socialLinkedIn, setSocialLinkedIn] = useState("");
-  const [socialYouTube, setSocialYouTube] = useState("");
-  const [socialDiscord, setSocialDiscord] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [form, setForm] = useState<ClaimFormValues>({
+    name: "",
+    slug: "",
+    tagline: "",
+    description: "",
+    websiteUrl: "",
+    affiliateUrl: "",
+    logoUrl: "",
+    categories: "",
+    features: "",
+    pricingModel: "freemium",
+    startingPrice: "0",
+    screenshotUrls: "",
+    videoUrls: "",
+    socialX: "",
+    socialLinkedIn: "",
+    socialYouTube: "",
+    socialDiscord: ""
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState("Check your listing details");
+  const [dialogMessages, setDialogMessages] = useState<string[]>([]);
+  const [dialogVariant, setDialogVariant] = useState<"validation" | "upgrade" | "success">("validation");
+
+  const claimSummary =
+    entitlements.claimLimit === null
+      ? `${entitlements.claimsUsed} claimed (unlimited plan)`
+      : `${entitlements.claimsUsed} / ${entitlements.claimLimit} claims used`;
+
+  useEffect(() => {
+    if (window.location.hash === `#${CREATE_CLAIM_SECTION_ID}`) {
+      scrollToCreateClaimSection();
+    }
+  }, []);
+
+  function showDialog(title: string, messages: string[], variant: "validation" | "upgrade" | "success") {
+    setDialogTitle(title);
+    setDialogMessages(messages);
+    setDialogVariant(variant);
+    setDialogOpen(true);
+  }
+
+  function updateField<K extends keyof ClaimFormValues>(key: K, value: ClaimFormValues[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
   async function claimListing() {
+    if (!entitlements.verified) {
+      showDialog(
+        "Verification required",
+        ["Complete a founder plan payment to become verified before claiming listings."],
+        "upgrade"
+      );
+      return;
+    }
+
+    if (!entitlements.canClaimMore) {
+      showDialog(
+        "Claim limit reached",
+        [
+          entitlements.claimLimit === null
+            ? "You cannot claim more listings on your current plan."
+            : `Your ${entitlements.planName ?? "plan"} includes ${entitlements.claimLimit} claimed listing${entitlements.claimLimit === 1 ? "" : "s"}. Upgrade to claim more.`
+        ],
+        "upgrade"
+      );
+      return;
+    }
+
+    const validationErrors = validateClaimForm(form);
+    if (validationErrors.length > 0) {
+      showDialog("Fix these fields", validationErrors, "validation");
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus("Creating claimed listing...");
 
     try {
       const response = await fetch("/api/founder/tools/claim", {
@@ -42,53 +106,55 @@ export function FounderListingManager({ tools }: { tools: FounderManagedTool[] }
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          name,
-          slug: slug.trim().toLowerCase(),
-          tagline,
-          description,
-          websiteUrl,
-          affiliateUrl,
-          logoUrl,
-          categories,
-          features,
-          pricingModel,
-          startingPrice,
-          screenshotUrls,
-          videoUrls,
-          socialX,
-          socialLinkedIn,
-          socialYouTube,
-          socialDiscord
+          ...form,
+          slug: form.slug.trim().toLowerCase()
         })
       });
 
-      const payload = (await response.json()) as { error?: string; message?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        message?: string;
+        code?: string;
+        messages?: string[];
+      };
       if (!response.ok) {
-        setStatus(payload.error ?? "Listing creation failed.");
+        if (payload.code === "CLAIM_LIMIT_REACHED" || payload.code === "NOT_VERIFIED") {
+          showDialog("Upgrade required", [payload.error ?? "Upgrade your plan to claim more listings."], "upgrade");
+          return;
+        }
+
+        const errorMessages =
+          Array.isArray(payload.messages) && payload.messages.length > 0
+            ? payload.messages
+            : [payload.error ?? "Listing creation failed. Check your details and try again."];
+
+        showDialog("Could not create listing", errorMessages, "validation");
         return;
       }
 
-      setStatus(payload.message ?? "Listing created.");
-      setName("");
-      setSlug("");
-      setTagline("");
-      setDescription("");
-      setWebsiteUrl("");
-      setAffiliateUrl("");
-      setLogoUrl("");
-      setCategories("");
-      setFeatures("");
-      setPricingModel("freemium");
-      setStartingPrice("0");
-      setScreenshotUrls("");
-      setVideoUrls("");
-      setSocialX("");
-      setSocialLinkedIn("");
-      setSocialYouTube("");
-      setSocialDiscord("");
+      showDialog("Listing created", [payload.message ?? "Your claimed listing was created successfully."], "success");
+      setForm({
+        name: "",
+        slug: "",
+        tagline: "",
+        description: "",
+        websiteUrl: "",
+        affiliateUrl: "",
+        logoUrl: "",
+        categories: "",
+        features: "",
+        pricingModel: "freemium",
+        startingPrice: "0",
+        screenshotUrls: "",
+        videoUrls: "",
+        socialX: "",
+        socialLinkedIn: "",
+        socialYouTube: "",
+        socialDiscord: ""
+      });
       router.refresh();
     } catch {
-      setStatus("Listing creation failed.");
+      showDialog("Could not create listing", ["Something went wrong. Please try again."], "validation");
     } finally {
       setIsSubmitting(false);
     }
@@ -96,30 +162,46 @@ export function FounderListingManager({ tools }: { tools: FounderManagedTool[] }
 
   return (
     <div className="space-y-6">
-      <Card>
+      <ClaimFeedbackDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title={dialogTitle}
+        messages={dialogMessages}
+        variant={dialogVariant}
+      />
+      <Card id={CREATE_CLAIM_SECTION_ID} className="scroll-mt-28">
         <CardHeader>
           <CardTitle>Create claimed listing</CardTitle>
+          <p className="text-sm text-muted-foreground">{claimSummary}</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => setName(event.target.value)} placeholder="Tool name" value={name} />
-            <Input onChange={(event) => setSlug(event.target.value)} placeholder="Slug, for example clipnova" value={slug} />
+            <Input onChange={(event) => updateField("name", event.target.value)} placeholder="Tool name" value={form.name} />
+            <Input onChange={(event) => updateField("slug", event.target.value)} placeholder="Slug, for example clipnova" value={form.slug} />
           </div>
-          <Input onChange={(event) => setTagline(event.target.value)} placeholder="Short tagline" value={tagline} />
-          <Textarea onChange={(event) => setDescription(event.target.value)} placeholder="Describe what this tool does, who it is for, and the main workflow outcomes." value={description} />
+          <Input onChange={(event) => updateField("tagline", event.target.value)} placeholder="Short tagline" value={form.tagline} />
+          <Textarea
+            onChange={(event) => updateField("description", event.target.value)}
+            placeholder="Describe what this tool does, who it is for, and the main workflow outcomes."
+            value={form.description}
+          />
           <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="Primary redirect / website link" value={websiteUrl} />
-            <Input onChange={(event) => setAffiliateUrl(event.target.value)} placeholder="Optional affiliate / redirect link" value={affiliateUrl} />
+            <Input onChange={(event) => updateField("websiteUrl", event.target.value)} placeholder="Primary redirect / website link" value={form.websiteUrl} />
+            <Input onChange={(event) => updateField("affiliateUrl", event.target.value)} placeholder="Optional affiliate / redirect link" value={form.affiliateUrl} />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => setLogoUrl(event.target.value)} placeholder="Logo image URL" value={logoUrl} />
-            <Input onChange={(event) => setCategories(event.target.value)} placeholder="Categories, separated by commas" value={categories} />
+            <Input onChange={(event) => updateField("logoUrl", event.target.value)} placeholder="Logo image URL" value={form.logoUrl} />
+            <Input onChange={(event) => updateField("categories", event.target.value)} placeholder="Categories, separated by commas" value={form.categories} />
           </div>
-          <Textarea onChange={(event) => setFeatures(event.target.value)} placeholder="Key features, separated by commas or new lines" value={features} />
+          <Textarea onChange={(event) => updateField("features", event.target.value)} placeholder="Key features, separated by commas or new lines" value={form.features} />
           <div className="grid gap-3 md:grid-cols-2">
             <label className="grid gap-2 text-sm text-muted-foreground">
               <span>Pricing model</span>
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" onChange={(event) => setPricingModel(event.target.value as typeof pricingModel)} value={pricingModel}>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                onChange={(event) => updateField("pricingModel", event.target.value)}
+                value={form.pricingModel}
+              >
                 <option value="free">Free</option>
                 <option value="freemium">Freemium</option>
                 <option value="paid">Paid</option>
@@ -127,21 +209,27 @@ export function FounderListingManager({ tools }: { tools: FounderManagedTool[] }
                 <option value="enterprise">Enterprise</option>
               </select>
             </label>
-            <Input onChange={(event) => setStartingPrice(event.target.value)} placeholder="Starting monthly price" type="number" value={startingPrice} />
+            <Input
+              onChange={(event) => updateField("startingPrice", event.target.value)}
+              placeholder="Starting monthly price"
+              type="number"
+              value={form.startingPrice}
+            />
           </div>
-          <Textarea onChange={(event) => setScreenshotUrls(event.target.value)} placeholder="Screenshot URLs, separated by new lines" value={screenshotUrls} />
-          <Textarea onChange={(event) => setVideoUrls(event.target.value)} placeholder="YouTube or embed video links, separated by new lines" value={videoUrls} />
+          <Textarea onChange={(event) => updateField("screenshotUrls", event.target.value)} placeholder="Screenshot URLs, separated by new lines" value={form.screenshotUrls} />
+          <Textarea onChange={(event) => updateField("videoUrls", event.target.value)} placeholder="YouTube or embed video links, separated by new lines" value={form.videoUrls} />
           <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => setSocialX(event.target.value)} placeholder="X profile URL" value={socialX} />
-            <Input onChange={(event) => setSocialLinkedIn(event.target.value)} placeholder="LinkedIn profile URL" value={socialLinkedIn} />
-            <Input onChange={(event) => setSocialYouTube(event.target.value)} placeholder="YouTube channel URL" value={socialYouTube} />
-            <Input onChange={(event) => setSocialDiscord(event.target.value)} placeholder="Discord invite URL" value={socialDiscord} />
+            <Input onChange={(event) => updateField("socialX", event.target.value)} placeholder="X profile URL" value={form.socialX} />
+            <Input onChange={(event) => updateField("socialLinkedIn", event.target.value)} placeholder="LinkedIn profile URL" value={form.socialLinkedIn} />
+            <Input onChange={(event) => updateField("socialYouTube", event.target.value)} placeholder="YouTube channel URL" value={form.socialYouTube} />
+            <Input onChange={(event) => updateField("socialDiscord", event.target.value)} placeholder="Discord invite URL" value={form.socialDiscord} />
           </div>
           <Button disabled={isSubmitting} onClick={claimListing}>
             {isSubmitting ? "Creating..." : "Create claimed listing"}
           </Button>
-          <p className="text-sm text-muted-foreground">This creates a new founder-owned listing. Tool page videos, screenshots, links, and updates will come from the data submitted here and from the manager below.</p>
-          {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
+          <p className="text-sm text-muted-foreground">
+            Validation messages appear in a popup when required fields are missing or invalid.
+          </p>
         </CardContent>
       </Card>
 
@@ -277,7 +365,9 @@ function ManagedToolCard({ tool }: { tool: FounderManagedTool }) {
     <Card>
       <CardHeader>
         <CardTitle>{tool.name}</CardTitle>
-        <p className="text-sm text-muted-foreground">{tool.categories.join(", ")} · {tool.mediaCount} media items · {tool.updateCount} updates</p>
+        <p className="text-sm text-muted-foreground">
+          {tool.categories.join(", ")} · {tool.mediaCount} media items · {tool.updateCount} updates
+        </p>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="updates">

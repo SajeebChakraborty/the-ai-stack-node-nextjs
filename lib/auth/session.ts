@@ -1,25 +1,23 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Role } from "@/types/domain";
 import { prisma } from "@/lib/db/prisma";
+import {
+  authSessionCookie,
+  decodeSessionCookie,
+  encodeSessionPayload,
+  getDefaultHomeForRole,
+  getLoginPathForRoles,
+  type SessionPayload
+} from "@/lib/auth/session-token";
 
-export const authSessionCookie = "theaistack_session";
+export { authSessionCookie, getDefaultHomeForRole, getLoginPathForRoles };
 
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 7;
 
 type SessionProvider = "google" | "password";
-
-type SessionPayload = {
-  profileId: string;
-  email: string;
-  name: string;
-  role: Role;
-  provider: SessionProvider;
-  exp: number;
-};
 
 export type CurrentUser = {
   id: string;
@@ -33,77 +31,9 @@ type SessionUser = CurrentUser & {
   id: string;
 };
 
-function getAuthSecret() {
-  return process.env.AUTH_COOKIE_SECRET ?? process.env.RATE_LIMIT_SECRET ?? process.env.CRON_SECRET ?? "theaistack-dev-secret";
-}
-
-function signValue(value: string) {
-  return createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
-}
-
-function encodePayload(payload: SessionPayload) {
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = signValue(body);
-  return `${body}.${signature}`;
-}
-
-function decodePayload(rawValue: string | undefined) {
-  if (!rawValue) {
-    return null;
-  }
-
-  const [body, signature] = rawValue.split(".");
-  if (!body || !signature) {
-    return null;
-  }
-
-  const expectedSignature = signValue(body);
-  const signatureBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expectedSignature);
-
-  if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
-    return null;
-  }
-
-  try {
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-    if (payload.exp <= Date.now()) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-export function getDefaultHomeForRole(role: Role) {
-  switch (role) {
-    case "admin":
-      return "/admin";
-    case "founder":
-      return "/founder/dashboard";
-    case "creator":
-      return "/creator/dashboard";
-    default:
-      return "/directory";
-  }
-}
-
-export function getLoginPathForRoles(allowedRoles?: Role[]) {
-  if (!allowedRoles?.length) {
-    return "/auth/login";
-  }
-
-  if (allowedRoles.includes("admin")) {
-    return "/auth/admin/login";
-  }
-
-  if (allowedRoles.includes("founder")) {
-    return "/auth/founder/login";
-  }
-
-  return "/auth/login";
+export async function replaceUserSession(user: SessionUser) {
+  await clearCurrentUserSession();
+  await setCurrentUserSession(user);
 }
 
 export async function setCurrentUserSession(user: SessionUser) {
@@ -117,7 +47,7 @@ export async function setCurrentUserSession(user: SessionUser) {
     exp: Date.now() + sessionMaxAgeSeconds * 1000
   };
 
-  cookieStore.set(authSessionCookie, encodePayload(payload), {
+  cookieStore.set(authSessionCookie, await encodeSessionPayload(payload), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -133,7 +63,7 @@ export async function clearCurrentUserSession() {
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
-  const payload = decodePayload(cookieStore.get(authSessionCookie)?.value);
+  const payload = await decodeSessionCookie(cookieStore.get(authSessionCookie)?.value);
 
   if (!payload) {
     return null;

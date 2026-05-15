@@ -14,7 +14,7 @@ type Props = {
 
 export default async function AdminLoginPage({ searchParams }: Props) {
   const { next, error } = await searchParams;
-  const nextPath = next?.startsWith("/") ? next : "/admin";
+  const nextPath = next?.startsWith("/") ? next : "/admin/dashboard";
   const user = await getCurrentUser();
 
   if (user) {

@@ -36,7 +36,8 @@ export async function POST(_request: Request, context: Context) {
       id: toolId
     },
     data: {
-      status: "published"
+      status: "published",
+      verified: true
     }
   });
 

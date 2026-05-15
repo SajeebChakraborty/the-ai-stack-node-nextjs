@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { enforceRouteAuth } from "@/lib/auth/middleware-auth";
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -15,6 +16,11 @@ export async function middleware(request: NextRequest) {
   ) {
     url.pathname = `/admin${url.pathname === "/" ? "" : url.pathname}`;
     return NextResponse.rewrite(url);
+  }
+
+  const authResponse = await enforceRouteAuth(request);
+  if (authResponse) {
+    return authResponse;
   }
 
   return NextResponse.next({

@@ -1,7 +1,10 @@
 import "server-only";
 
+import { isFounderPaymentVerified } from "@/lib/founders/verification";
 import { prisma } from "@/lib/db/prisma";
 import { normalizeYoutubeEmbedUrl } from "@/lib/tools/media";
+import { filterDisplayFeatures } from "@/lib/utils/display-features";
+import { filterLikelyImageUrls, isLikelyImageUrl, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
 import type { PricingModel } from "@/types/domain";
 
 function slugify(value: string) {
@@ -128,6 +131,7 @@ export async function createFounderClaimedListing({
   }
 
   const categoryRecords = await Promise.all(categories.map((categoryName) => ensureCategory(categoryName)));
+  const founderVerified = await isFounderPaymentVerified(founderId, "founder");
   const tool = await prisma.tool.create({
     data: {
       slug,
@@ -135,17 +139,17 @@ export async function createFounderClaimedListing({
       name,
       tagline,
       description,
-      logoUrl,
+      logoUrl: logoUrl?.trim() && isLikelyImageUrl(logoUrl) ? resolveToolLogoUrl(logoUrl) : null,
       websiteUrl,
       affiliateUrl: affiliateUrl || websiteUrl,
       pricingModel: toPricingModel(pricingModel),
       startingPrice,
-      verified: false,
-      status: "draft",
+      verified: founderVerified,
+      status: founderVerified ? "published" : "draft",
       launchedAt: new Date(),
       socialLinks,
       metadata: {
-        features,
+        features: filterDisplayFeatures(features),
         faqs: []
       }
     }
@@ -161,7 +165,7 @@ export async function createFounderClaimedListing({
 
   await createMediaAssets({
     founderId,
-    screenshotUrls,
+    screenshotUrls: filterLikelyImageUrls(screenshotUrls),
     toolId: tool.id,
     videoUrls
   });

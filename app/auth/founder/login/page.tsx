@@ -18,8 +18,7 @@ export default async function FounderLoginPage({ searchParams }: Props) {
   const user = await getCurrentUser();
 
   if (user) {
-    const destination = user.role === "founder" || user.role === "admin" ? nextPath : getDefaultHomeForRole(user.role);
-    redirect(destination);
+    redirect(user.role === "founder" ? nextPath : getDefaultHomeForRole(user.role));
   }
 
   return (

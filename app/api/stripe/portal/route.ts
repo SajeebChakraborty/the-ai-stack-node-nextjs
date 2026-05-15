@@ -33,11 +33,14 @@ export async function POST(request: Request) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
-  let stripe: ReturnType<typeof getStripe>;
+  let stripe: Awaited<ReturnType<typeof getStripe>>;
   try {
-    stripe = getStripe();
+    stripe = await getStripe();
   } catch {
-    return NextResponse.json({ error: "Stripe is not configured yet. Add STRIPE_SECRET_KEY to enable the billing portal." }, { status: 503 });
+    return NextResponse.json(
+      { error: "Stripe is not configured yet. Add keys in Admin → Settings → Stripe billing." },
+      { status: 503 }
+    );
   }
   const portal = await stripe.billingPortal.sessions.create({
     customer: customerId,

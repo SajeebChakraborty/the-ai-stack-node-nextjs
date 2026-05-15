@@ -5,7 +5,10 @@
   "description": "TheAiStack is an AI directory, review, creator, media, analytics, and subscription ecosystem.",
   "scripts": {
     "dev": "next dev",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "dev:fresh": "npm run clean && next dev",
     "build": "next build",
+    "build:fresh": "npm run clean && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "lint": "next lint",
@@ -14,7 +17,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "stripe:sync-plans": "node --env-file=.env scripts/sync-stripe-plans.mjs"
   },
   "overrides": {
     "postcss": "^8.5.14"

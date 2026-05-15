@@ -3,7 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { setCurrentUserSession } from "@/lib/auth/session";
+import { getPortalAccessError } from "@/lib/auth/portals";
+import { replaceUserSession } from "@/lib/auth/session";
 
 const adminLoginSchema = z.object({
   email: z.string().email(),
@@ -23,7 +24,7 @@ function safeEqual(left: string, right: string) {
 }
 
 function sanitizeNextPath(next: string | undefined) {
-  return next?.startsWith("/") ? next : "/admin";
+  return next?.startsWith("/") ? next : "/admin/dashboard";
 }
 
 export async function POST(request: Request) {
@@ -58,7 +59,12 @@ export async function POST(request: Request) {
       }
     });
 
-    await setCurrentUserSession({
+    const portalError = getPortalAccessError(profile.role, "admin");
+    if (portalError) {
+      return NextResponse.json({ error: portalError }, { status: 403 });
+    }
+
+    await replaceUserSession({
       id: profile.id,
       email: profile.email,
       name: profile.fullName ?? "Platform Admin",

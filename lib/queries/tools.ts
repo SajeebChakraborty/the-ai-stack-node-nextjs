@@ -4,6 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { categories, reviews as seedReviews, tools as seedTools } from "@/data/catalog";
 import type { Review, Tool } from "@/types/domain";
+import { applyToolEngagementMetrics, syncToolEngagementMetrics } from "@/lib/analytics/tool-metrics";
+import { filterDisplayFeatures } from "@/lib/utils/display-features";
+import { DEFAULT_TOOL_LOGO, filterLikelyImageUrls, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
 import { sortTools } from "@/lib/utils/ranking";
 
 const toolInclude = {
@@ -146,7 +149,7 @@ function getMediaByKind(tool: DbTool | DbToolPage, kind: "image" | "video") {
   return tool.mediaAssets.filter((asset) => asset.kind === kind);
 }
 
-function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { founderId?: string | null } {
+export function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { founderId?: string | null } {
   const metadata = getRecord(tool.metadata);
   const socialLinks = getRecord(tool.socialLinks);
   const screenshots = getMediaByKind(tool, "image").map((asset) => asset.publicUrl);
@@ -168,11 +171,13 @@ function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { founder
     name: tool.name,
     tagline: tool.tagline,
     description: tool.description,
-    logoUrl: tool.logoUrl ?? seedTool?.logoUrl ?? "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=180&q=80",
+    logoUrl: resolveToolLogoUrl(tool.logoUrl ?? seedTool?.logoUrl ?? DEFAULT_TOOL_LOGO),
     websiteUrl: tool.websiteUrl,
     affiliateUrl: tool.affiliateUrl ?? seedTool?.affiliateUrl ?? tool.websiteUrl,
     categories: tool.categories.map((item) => item.category.name),
-    features: getStringArray(metadata?.features).length ? getStringArray(metadata?.features) : seedTool?.features ?? [],
+    features: filterDisplayFeatures(
+      getStringArray(metadata?.features).length ? getStringArray(metadata?.features) : seedTool?.features ?? []
+    ),
     pricingModel: tool.pricingModel === "usage_based" ? "usage-based" : tool.pricingModel,
     startingPrice: toNumber(tool.startingPrice),
     rating: toNumber(tool.ratingAvg),
@@ -189,7 +194,7 @@ function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { founder
       companyStage: tool.founder?.founderProfile?.companyStage ?? seedTool?.founder.companyStage ?? "Independent",
       location: tool.founder?.location ?? seedTool?.founder.location ?? "Remote"
     },
-    screenshots: screenshots.length ? screenshots : seedTool?.screenshots ?? [],
+    screenshots: filterLikelyImageUrls(screenshots.length ? screenshots : seedTool?.screenshots ?? []),
     videos: videos.length ? videos : seedTool?.videos ?? [],
     socials: {
       x: typeof socialLinks?.x === "string" ? socialLinks.x : seedTool?.socials.x ?? "",
@@ -391,9 +396,7 @@ export async function getAlternatives(slug: string) {
           slug: {
             not: slug
           },
-          founderId: {
-            not: null
-          },
+          status: "published",
           categories: {
             some: {
               categoryId: {
@@ -431,15 +434,17 @@ export async function getToolPageData(slug: string): Promise<ToolPageData | null
     });
 
     if (dbTool) {
-      const tool = mapDbTool(dbTool, findSeedToolBySlug(slug) ?? undefined);
+      const mappedTool = mapDbTool(dbTool, findSeedToolBySlug(slug) ?? undefined);
       const alternatives = await getAlternatives(slug);
+      const metricsMap = await syncToolEngagementMetrics([mappedTool.id, ...alternatives.map((item) => item.id)]);
+      const tool = applyToolEngagementMetrics(mappedTool, metricsMap);
 
       return {
         tool,
         toolReviews: dbTool.reviews.map((review) => mapDbReview(review, dbTool.slug)),
         discussions: dbTool.discussions.map(mapDbDiscussion),
         updates: dbTool.updates.map((update) => mapDbUpdate(update, tool.founder.name)),
-        alternatives
+        alternatives: alternatives.map((item) => applyToolEngagementMetrics(item, metricsMap))
       };
     }
   } catch {
