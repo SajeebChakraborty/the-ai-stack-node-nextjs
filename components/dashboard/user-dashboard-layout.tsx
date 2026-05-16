@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { Bookmark, Crown, LayoutDashboard, ListChecks, PlusCircle } from "lucide-react";
+import { Bookmark, Crown, FileText, LayoutDashboard, ListChecks, PlusCircle } from "lucide-react";
 import { BookmarksPanel } from "@/components/dashboard/bookmarks-panel";
+import { ClaimRequestsPanel } from "@/components/dashboard/claim-requests-panel";
 import { MembershipPanel } from "@/components/dashboard/membership-panel";
 import { FounderMetricCards } from "@/components/founder/founder-metric-cards";
 import { FounderMetricsChart } from "@/components/founder/founder-metrics-chart";
@@ -14,6 +15,7 @@ import { getDashboardCopy } from "@/lib/dashboard/copy";
 import { CREATE_CLAIM_SECTION_ID } from "@/lib/founder/claim-section";
 import { UserDashboardNavContext, type UserDashboardView } from "@/lib/dashboard/nav-context";
 import type { MembershipSummary } from "@/lib/queries/membership";
+import type { ListingClaimRequestView } from "@/types/listing-claim-request";
 import type { FounderEntitlementsView } from "@/types/founder";
 import type { FounderDashboardMetrics } from "@/lib/queries/founder-analytics";
 import type { FounderManagedTool } from "@/lib/queries/tools";
@@ -54,6 +56,12 @@ const navItems: Array<{
     label: "Bookmarks",
     description: "Saved directory listings",
     icon: Bookmark
+  },
+  {
+    id: "claim-requests",
+    label: "Claim requests",
+    description: "Pending listing claims",
+    icon: FileText
   }
 ];
 
@@ -64,6 +72,7 @@ type UserDashboardLayoutProps = {
   entitlements: FounderEntitlementsView;
   initialVerified: boolean;
   membership: MembershipSummary;
+  claimRequests: ListingClaimRequestView[];
 };
 
 export function UserDashboardLayout({
@@ -72,7 +81,8 @@ export function UserDashboardLayout({
   tools,
   entitlements,
   initialVerified,
-  membership
+  membership,
+  claimRequests
 }: UserDashboardLayoutProps) {
   const copy = getDashboardCopy(copyVariant);
   const [activeView, setActiveView] = useState<UserDashboardView>("dashboard");
@@ -157,6 +167,8 @@ export function UserDashboardLayout({
                 <MembershipPanel initialMembership={membership} />
               ) : activeView === "bookmarks" ? (
                 <BookmarksPanel initialBookmarks={membership.bookmarks} />
+              ) : activeView === "claim-requests" ? (
+                <ClaimRequestsPanel initialRequests={claimRequests} />
               ) : (
                 <FounderListingManager
                   copyVariant={copyVariant}

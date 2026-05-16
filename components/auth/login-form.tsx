@@ -52,8 +52,7 @@ const copyByMode: Record<
   admin: {
     title: "Admin login",
     description: "Sign in with the configured admin username and password.",
-    defaultEmail: "admin@gmail.com",
-    helperText: "Default local credentials: admin@gmail.com / 12345678"
+    helperText: ""
   }
 };
 
@@ -320,7 +319,7 @@ export function LoginForm({
                 id="admin-email"
                 autoComplete="username"
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="admin@gmail.com"
+                placeholder="Admin email"
                 type="email"
                 value={email}
               />
@@ -333,7 +332,7 @@ export function LoginForm({
                 id="admin-password"
                 autoComplete="current-password"
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="12345678"
+                placeholder="Enter your password"
                 type="password"
                 value={password}
               />
@@ -439,7 +438,7 @@ export function LoginForm({
             </TabsContent>
           </Tabs>
         )}
-        <p className="text-sm text-muted-foreground">{copy.helperText}</p>
+        {copy.helperText ? <p className="text-sm text-muted-foreground">{copy.helperText}</p> : null}
       </CardContent>
     </Card>
   );

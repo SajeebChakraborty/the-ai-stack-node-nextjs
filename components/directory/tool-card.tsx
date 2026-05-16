@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Bookmark, CheckCircle2, ExternalLink, Star, TrendingUp } from "lucide-react";
+import { BarChart3, Bookmark, CheckCircle2, ExternalLink, Handshake, Star, TrendingUp } from "lucide-react";
+import { ClaimRequestDialog } from "@/components/directory/claim-request-dialog";
+import { showInfoAlert } from "@/lib/ui/sweet-alert";
+import "sweetalert2/dist/sweetalert2.min.css";
 import {
   ToolListingTracker,
   trackDirectoryOutboundClick,
@@ -19,13 +22,84 @@ export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; 
   const { bookmarkedToolIds, toggleBookmark } = useAppStore();
   const isBookmarked = bookmarkedToolIds.includes(tool.id);
   const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+  const [pendingClaimRequest, setPendingClaimRequest] = useState(false);
+  const isUnclaimed = !tool.founderId;
+
+  useEffect(() => {
+    if (!isUnclaimed) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadPendingClaim() {
+      try {
+        const response = await fetch("/api/listing-claim-requests/mine");
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { requests: Array<{ tool: { id: string }; status: string }> };
+        const hasPending = payload.requests.some(
+          (request) => request.tool.id === tool.id && request.status === "pending"
+        );
+
+        if (!cancelled && hasPending) {
+          setPendingClaimRequest(true);
+        }
+      } catch {
+        // ignore — card still works without prefetch
+      }
+    }
+
+    void loadPendingClaim();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isUnclaimed, tool.id]);
 
   async function handleBookmark() {
     const message = await toggleBookmark(tool.id);
     setBookmarkMessage(message);
   }
 
+  async function handleClaimRequestClick() {
+    try {
+      const response = await fetch("/api/auth/me");
+      const payload = (await response.json()) as { user: { id: string } | null };
+
+      if (!payload.user) {
+        void showInfoAlert({
+          title: "Sign in required",
+          text: "Please sign in to request a listing claim."
+        }).then(() => {
+          window.location.href = `/auth/login?next=${encodeURIComponent("/directory")}`;
+        });
+        return;
+      }
+
+      if (pendingClaimRequest) {
+        void showInfoAlert({
+          title: "Request pending",
+          text: "You already submitted a claim request for this listing."
+        });
+        return;
+      }
+
+      setClaimDialogOpen(true);
+    } catch {
+      void showInfoAlert({ title: "Could not verify login", text: "Please try again." });
+    }
+  }
+
+  function handleClaimSubmitted() {
+    setPendingClaimRequest(true);
+  }
+
   return (
+    <>
     <Card className="group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-glow">
       <ToolListingTracker toolId={tool.id} source={analyticsSource} />
       <CardContent className="grid gap-4 p-4">
@@ -80,23 +154,40 @@ export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; 
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-muted-foreground">
             From <span className="font-semibold text-foreground">${tool.startingPrice}</span>/mo
           </span>
-          <Button asChild size="sm" variant="outline">
-            <a
-              href={tool.affiliateUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => trackDirectoryOutboundClick(tool.id, analyticsSource)}
-            >
-              Visit
-              <ExternalLink className="ml-2 h-3.5 w-3.5" />
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isUnclaimed ? (
+              <Button size="sm" variant="secondary" onClick={() => void handleClaimRequestClick()}>
+                <Handshake className="mr-2 h-3.5 w-3.5" />
+                {pendingClaimRequest ? "Request pending" : "Claim request"}
+              </Button>
+            ) : null}
+            <Button asChild size="sm" variant="outline">
+              <a
+                href={tool.affiliateUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => trackDirectoryOutboundClick(tool.id, analyticsSource)}
+              >
+                Visit
+                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+              </a>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
+    {isUnclaimed ? (
+      <ClaimRequestDialog
+        tool={tool}
+        open={claimDialogOpen}
+        onClose={() => setClaimDialogOpen(false)}
+        onSubmitted={handleClaimSubmitted}
+      />
+    ) : null}
+    </>
   );
 }

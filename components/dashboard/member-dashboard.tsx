@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { UserDashboardLayout } from "@/components/dashboard/user-dashboard-layout";
 import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
 import { getDashboardCopy } from "@/lib/dashboard/copy";
+import { getUserListingClaimRequests } from "@/lib/queries/listing-claim-requests";
 import { getUserMembershipSummary } from "@/lib/queries/membership";
 import { getFounderEntitlements } from "@/lib/founders/entitlements";
 import { getFounderDashboardMetrics } from "@/lib/queries/founder-analytics";
@@ -24,11 +25,12 @@ export function memberDashboardMetadata(copyVariant: DashboardCopyVariant): Meta
 }
 
 export async function MemberDashboard({ userId, role, copyVariant }: MemberDashboardProps) {
-  const [managedTools, entitlements, metrics, membership] = await Promise.all([
+  const [managedTools, entitlements, metrics, membership, claimRequests] = await Promise.all([
     getFounderManagedTools(userId),
     getFounderEntitlements(userId, role),
     getFounderDashboardMetrics(userId),
-    getUserMembershipSummary(userId)
+    getUserMembershipSummary(userId),
+    getUserListingClaimRequests(userId)
   ]);
 
   return (
@@ -36,6 +38,7 @@ export async function MemberDashboard({ userId, role, copyVariant }: MemberDashb
       copyVariant={copyVariant}
       entitlements={entitlements}
       initialVerified={entitlements.verified}
+      claimRequests={claimRequests}
       membership={membership}
       metrics={metrics}
       tools={managedTools}

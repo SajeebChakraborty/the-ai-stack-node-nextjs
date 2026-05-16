@@ -63,12 +63,6 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
               <Button asChild size="sm" variant="outline">
                 <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
               </Button>
-              {/* <Button asChild size="sm" variant="outline">
-                <Link href="/auth/founder/login">Founder</Link>
-              </Button> */}
-              <Button asChild size="sm">
-                <Link href="/auth/admin/login">Admin</Link>
-              </Button>
             </div>
           )}
         </div>

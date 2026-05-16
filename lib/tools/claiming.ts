@@ -46,7 +46,7 @@ async function createMediaAssets({
   toolId,
   videoUrls
 }: {
-  founderId: string;
+  founderId: string | null;
   promoVideoUrl?: string;
   screenshotUrls: string[];
   toolId: string;
@@ -55,7 +55,7 @@ async function createMediaAssets({
   for (const [index, screenshot] of screenshotUrls.entries()) {
     await prisma.mediaAsset.create({
       data: {
-        ownerId: founderId,
+        ownerId: founderId ?? undefined,
         toolId,
         kind: "image",
         bucket: "claimed-listings",
@@ -71,7 +71,7 @@ async function createMediaAssets({
   if (normalizedPromo) {
     await prisma.mediaAsset.create({
       data: {
-        ownerId: founderId,
+        ownerId: founderId ?? undefined,
         toolId,
         kind: "video",
         bucket: "claimed-listings",
@@ -96,7 +96,7 @@ async function createMediaAssets({
     videoIndex += 1;
     await prisma.mediaAsset.create({
       data: {
-        ownerId: founderId,
+        ownerId: founderId ?? undefined,
         toolId,
         kind: "video",
         bucket: "claimed-listings",
@@ -128,13 +128,14 @@ export async function createFounderClaimedListing({
   tagline,
   promoVideoUrl,
   videoUrls,
-  websiteUrl
+  websiteUrl,
+  autoApprove = false
 }: {
   affiliateUrl?: string;
   categories: string[];
   description: string;
   features: string[];
-  founderId: string;
+  founderId: string | null;
   logoUrl?: string;
   name: string;
   pricingModel: PricingModel;
@@ -146,6 +147,7 @@ export async function createFounderClaimedListing({
   promoVideoUrl?: string;
   videoUrls: string[];
   websiteUrl: string;
+  autoApprove?: boolean;
 }) {
   const existingTool = await prisma.tool.findUnique({
     where: {
@@ -162,16 +164,19 @@ export async function createFounderClaimedListing({
   }
 
   const categoryRecords = await Promise.all(categories.map((categoryName) => ensureCategory(categoryName)));
-  const owner = await prisma.profile.findUnique({
-    where: { id: founderId },
-    select: { role: true }
-  });
-  const founderVerified = await isFounderPaymentVerified(founderId, owner?.role ?? "user");
+  const owner = founderId
+    ? await prisma.profile.findUnique({
+        where: { id: founderId },
+        select: { role: true }
+      })
+    : null;
+  const founderVerified = founderId ? await isFounderPaymentVerified(founderId, owner?.role ?? "user") : false;
   const normalizedPromoVideo = promoVideoUrl ? normalizeYoutubeEmbedUrl(promoVideoUrl) : null;
+  const published = autoApprove || founderVerified;
   const tool = await prisma.tool.create({
     data: {
       slug,
-      founderId,
+      founderId: founderId ?? undefined,
       name,
       tagline,
       description,
@@ -180,8 +185,8 @@ export async function createFounderClaimedListing({
       affiliateUrl: affiliateUrl || websiteUrl,
       pricingModel: toPricingModel(pricingModel),
       startingPrice,
-      verified: founderVerified,
-      status: founderVerified ? "published" : "draft",
+      verified: autoApprove || founderVerified,
+      status: published ? "published" : "draft",
       launchedAt: new Date(),
       socialLinks,
       metadata: {

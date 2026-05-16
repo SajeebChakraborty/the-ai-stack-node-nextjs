@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarChart3, CreditCard, Eye, Flag, Globe2, LayoutDashboard, Megaphone, Newspaper, ShieldCheck, Star, Users } from "lucide-react";
 import type { Awaited } from "@/types/utility";
+import type { ListingClaimRequestView } from "@/types/listing-claim-request";
 import { getAdminOverview } from "@/lib/queries/admin";
 import { AdminActionButton } from "@/components/admin/admin-action-button";
 import { AdminMemberTable } from "@/components/admin/admin-member-table";
+import { AdminBulkClaimPanel } from "@/components/admin/admin-bulk-claim-panel";
+import { AdminClaimRequestsPanel } from "@/components/admin/admin-claim-requests-panel";
 import { AdminPlansPanel } from "@/components/admin/admin-plans-panel";
 // import { StripeSettingsForm } from "@/components/admin/stripe-settings-form";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +29,9 @@ const adminSections = [
   // "Creators",
   "Founders",
   "Subscriptions",
-  "Plans"
+  "Plans",
+  "Bulk Claim",
+  "Claim Requests"
   // "Homepage",
   // "Categories",
   // "Moderation",
@@ -37,7 +42,13 @@ const adminSections = [
   // "Settings"
 ];
 
-export function AdminConsole({ data }: { data: AdminData }) {
+export function AdminConsole({
+  data,
+  claimRequests = []
+}: {
+  data: AdminData;
+  claimRequests?: ListingClaimRequestView[];
+}) {
   const router = useRouter();
   // const [maintenanceMode, setMaintenanceMode] = useState(data.siteSettings.maintenanceMode);
   const [pendingClaims, setPendingClaims] = useState(data.pendingClaims);
@@ -171,6 +182,12 @@ export function AdminConsole({ data }: { data: AdminData }) {
         </TabsContent>
         <TabsContent value="plans" className="mt-0">
           <AdminPlansPanel initialPlans={data.premiumPlans} />
+        </TabsContent>
+        <TabsContent value="bulk claim" className="mt-0">
+          <AdminBulkClaimPanel />
+        </TabsContent>
+        <TabsContent value="claim requests" className="mt-0">
+          <AdminClaimRequestsPanel initialRequests={claimRequests} />
         </TabsContent>
         {/* <TabsContent value="homepage" className="mt-0">
           <CrudPanel title="Homepage sections" description="Control hero banners, featured tools, creator spotlight, testimonials, newsletter CTAs, and sponsored placements." items={["Hero banner", "Trending tools", "Featured reviews", "AI news rail"]} />

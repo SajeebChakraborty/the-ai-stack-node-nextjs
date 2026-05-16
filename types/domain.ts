@@ -2,8 +2,11 @@ export type Role = "user" | "creator" | "founder" | "moderator" | "admin";
 
 export type PricingModel = "free" | "freemium" | "paid" | "usage-based" | "enterprise";
 
+export type ListingClaimRequestStatus = "pending" | "approved" | "rejected";
+
 export type Tool = {
   id: string;
+  founderId?: string | null;
   slug: string;
   name: string;
   tagline: string;

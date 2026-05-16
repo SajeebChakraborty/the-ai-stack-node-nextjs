@@ -47,6 +47,19 @@ enum SubscriptionStatus {
   paused
 }
 
+enum BulkClaimJobStatus {
+  queued
+  processing
+  completed
+  failed
+}
+
+enum ListingClaimRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 enum MediaKind {
   image
   video
@@ -88,6 +101,9 @@ model Profile {
   notifications      Notification[]
   affiliateLinks     AffiliateLink[]
   creatorEarnings    CreatorEarning[]
+  bulkClaimImportJobs BulkClaimImportJob[]
+  listingClaimRequests ListingClaimRequest[] @relation("ListingClaimRequester")
+  reviewedListingClaimRequests ListingClaimRequest[] @relation("ListingClaimReviewer")
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -144,10 +160,12 @@ model Tool {
   updates        ToolUpdate[]
   affiliateLinks AffiliateLink[]
   campaigns      LaunchCampaign[]
+  listingClaimRequests ListingClaimRequest[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   @@index([status])
+  @@index([founderId])
   @@index([ratingAvg, reviewCount])
   @@index([trendingScore, growthRate])
   @@fulltext([name, tagline, description])
@@ -537,6 +555,55 @@ model Advertisement {
   metrics   Json?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+model ListingClaimRequest {
+  id                       String                    @id @default(cuid())
+  toolId                   String
+  requesterId              String
+  businessName             String
+  businessStartDate        DateTime
+  businessRegistrationDate DateTime
+  businessDocumentUrl      String                    @db.Text
+  additionalNotes          String?                   @db.Text
+  attachmentUrls           Json?
+  status                   ListingClaimRequestStatus @default(pending)
+  adminNotes               String?                   @db.Text
+  reviewedAt               DateTime?
+  reviewedById             String?
+  tool                     Tool                      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  requester                Profile                   @relation("ListingClaimRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewedBy               Profile?                  @relation("ListingClaimReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requesterId, createdAt])
+  @@index([toolId])
+}
+
+model BulkClaimImportJob {
+  id            String             @id @default(cuid())
+  adminId       String?
+  status        BulkClaimJobStatus @default(queued)
+  fileName      String?
+  totalRows     Int                @default(0)
+  nextRowIndex  Int                @default(0)
+  processedRows Int                @default(0)
+  createdCount  Int                @default(0)
+  failedCount   Int                @default(0)
+  rows          Json
+  created       Json?
+  failed        Json?
+  errorMessage  String?            @db.Text
+  startedAt     DateTime?
+  completedAt   DateTime?
+  admin         Profile?           @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([adminId, createdAt])
 }
 
 model LaunchCampaign {
