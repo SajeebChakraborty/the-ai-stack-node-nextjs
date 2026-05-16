@@ -33,6 +33,7 @@ export type Tool = {
     location: string;
   };
   screenshots: string[];
+  promoVideoUrl?: string | null;
   videos: { title: string; embedUrl: string; duration: string }[];
   socials: Record<"x" | "linkedin" | "youtube" | "discord", string>;
   faqs: { question: string; answer: string }[];

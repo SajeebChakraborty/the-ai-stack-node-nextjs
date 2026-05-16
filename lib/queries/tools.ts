@@ -153,6 +153,13 @@ export function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { 
   const metadata = getRecord(tool.metadata);
   const socialLinks = getRecord(tool.socialLinks);
   const screenshots = getMediaByKind(tool, "image").map((asset) => asset.publicUrl);
+  const promoFromMetadata =
+    typeof metadata?.promoVideoUrl === "string" && metadata.promoVideoUrl.trim() ? metadata.promoVideoUrl : null;
+  const promoFromMedia = tool.mediaAssets.find(
+    (asset) =>
+      asset.kind === "video" &&
+      (asset.path.includes("/videos/promo") || asset.altText?.toLowerCase() === "promo video")
+  );
   const videos = getMediaByKind(tool, "video").map((asset) => {
     const videoMetadata = getRecord(asset.metadata);
     const title = typeof videoMetadata?.title === "string" ? videoMetadata.title : `${tool.name} video`;
@@ -195,6 +202,11 @@ export function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { 
       location: tool.founder?.location ?? seedTool?.founder.location ?? "Remote"
     },
     screenshots: filterLikelyImageUrls(screenshots.length ? screenshots : seedTool?.screenshots ?? []),
+    promoVideoUrl:
+      promoFromMetadata ??
+      promoFromMedia?.publicUrl ??
+      seedTool?.promoVideoUrl ??
+      (videos[0]?.embedUrl ?? seedTool?.videos?.[0]?.embedUrl ?? null),
     videos: videos.length ? videos : seedTool?.videos ?? [],
     socials: {
       x: typeof socialLinks?.x === "string" ? socialLinks.x : seedTool?.socials.x ?? "",

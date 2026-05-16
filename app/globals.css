@@ -78,4 +78,17 @@
   .minimal-surface {
     @apply border border-border bg-card shadow-sm;
   }
+
+  .home-3d-scene {
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-3d-scene,
+  .home-3d-scene * {
+    animation: none !important;
+    transition: none !important;
+  }
 }

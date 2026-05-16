@@ -16,6 +16,7 @@ import type { Tool } from "@/types/domain";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ToolCardPromoVideo } from "@/components/directory/tool-card-promo-video";
 import { ToolLogo } from "@/components/ui/tool-logo";
 
 export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; analyticsSource?: "directory" | "home" | "search" }) {
@@ -102,6 +103,14 @@ export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; 
     <>
     <Card className="group overflow-hidden transition hover:-translate-y-0.5 hover:shadow-glow">
       <ToolListingTracker toolId={tool.id} source={analyticsSource} />
+      {isUnclaimed ? (
+        <ToolCardPromoVideo
+          toolId={tool.id}
+          toolName={tool.name}
+          promoVideoUrl={tool.promoVideoUrl}
+          videos={tool.videos}
+        />
+      ) : null}
       <CardContent className="grid gap-4 p-4">
         <div className="flex gap-4">
           <ToolLogo src={tool.logoUrl} alt={`${tool.name} logo`} width={64} height={64} className="h-16 w-16 rounded-lg object-cover" />
