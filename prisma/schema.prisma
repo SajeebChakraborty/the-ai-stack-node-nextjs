@@ -165,7 +165,6 @@ model Tool {
   updatedAt      DateTime        @updatedAt
 
   @@index([status])
-  @@index([founderId])
   @@index([ratingAvg, reviewCount])
   @@index([trendingScore, growthRate])
   @@fulltext([name, tagline, description])
