@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { FounderMetricCards } from "@/components/founder/founder-metric-cards";
-import { FounderVerificationBanner } from "@/components/founder/founder-verification-banner";
-import { FounderDashboardActions } from "@/components/founder/founder-dashboard-actions";
-import { FounderListingManager } from "@/components/founder/founder-listing-manager";
+import { UserDashboardLayout } from "@/components/dashboard/user-dashboard-layout";
 import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
 import { getDashboardCopy } from "@/lib/dashboard/copy";
+import { getUserMembershipSummary } from "@/lib/queries/membership";
 import { getFounderEntitlements } from "@/lib/founders/entitlements";
 import { getFounderDashboardMetrics } from "@/lib/queries/founder-analytics";
 import { getFounderManagedTools } from "@/lib/queries/tools";
@@ -27,37 +24,21 @@ export function memberDashboardMetadata(copyVariant: DashboardCopyVariant): Meta
 }
 
 export async function MemberDashboard({ userId, role, copyVariant }: MemberDashboardProps) {
-  const copy = getDashboardCopy(copyVariant);
-  const [managedTools, entitlements, metrics] = await Promise.all([
+  const [managedTools, entitlements, metrics, membership] = await Promise.all([
     getFounderManagedTools(userId),
     getFounderEntitlements(userId, role),
-    getFounderDashboardMetrics(userId)
+    getFounderDashboardMetrics(userId),
+    getUserMembershipSummary(userId)
   ]);
 
   return (
-    <div className="section-shell">
-      <Suspense fallback={null}>
-        <FounderVerificationBanner
-          copyVariant={copyVariant}
-          initialVerified={entitlements.verified}
-          initialEntitlements={entitlements}
-        />
-      </Suspense>
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">{copy.dashboardEyebrow}</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-normal md:text-5xl">Manage your market presence.</h1>
-          <p className="mt-4 max-w-3xl text-muted-foreground">
-            Metrics below come from real directory and profile activity on your claimed listings (last {metrics.periodDays}{" "}
-            days).
-          </p>
-        </div>
-        <FounderDashboardActions copyVariant={copyVariant} primaryOnly />
-      </div>
-      <FounderMetricCards metrics={metrics} />
-      <div className="mt-6">
-        <FounderListingManager copyVariant={copyVariant} tools={managedTools} entitlements={entitlements} />
-      </div>
-    </div>
+    <UserDashboardLayout
+      copyVariant={copyVariant}
+      entitlements={entitlements}
+      initialVerified={entitlements.verified}
+      membership={membership}
+      metrics={metrics}
+      tools={managedTools}
+    />
   );
 }

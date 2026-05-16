@@ -41,11 +41,13 @@ async function ensureCategory(categoryName: string) {
 
 async function createMediaAssets({
   founderId,
+  promoVideoUrl,
   screenshotUrls,
   toolId,
   videoUrls
 }: {
   founderId: string;
+  promoVideoUrl?: string;
   screenshotUrls: string[];
   toolId: string;
   videoUrls: string[];
@@ -64,18 +66,45 @@ async function createMediaAssets({
     });
   }
 
-  for (const [index, videoUrl] of videoUrls.entries()) {
+  const normalizedPromo = promoVideoUrl ? normalizeYoutubeEmbedUrl(promoVideoUrl) : null;
+
+  if (normalizedPromo) {
     await prisma.mediaAsset.create({
       data: {
         ownerId: founderId,
         toolId,
         kind: "video",
         bucket: "claimed-listings",
-        path: `${toolId}/videos/${index + 1}`,
-        publicUrl: normalizeYoutubeEmbedUrl(videoUrl),
-        altText: `Founder video ${index + 1}`,
+        path: `${toolId}/videos/promo`,
+        publicUrl: normalizedPromo,
+        altText: "Promo video",
         metadata: {
-          title: `Founder video ${index + 1}`,
+          title: "Promo video",
+          duration: "Watch"
+        }
+      }
+    });
+  }
+
+  let videoIndex = 0;
+  for (const videoUrl of videoUrls) {
+    const normalized = normalizeYoutubeEmbedUrl(videoUrl);
+    if (normalizedPromo && normalized === normalizedPromo) {
+      continue;
+    }
+
+    videoIndex += 1;
+    await prisma.mediaAsset.create({
+      data: {
+        ownerId: founderId,
+        toolId,
+        kind: "video",
+        bucket: "claimed-listings",
+        path: `${toolId}/videos/${videoIndex}`,
+        publicUrl: normalized,
+        altText: `Founder video ${videoIndex}`,
+        metadata: {
+          title: `Founder video ${videoIndex}`,
           duration: "Watch"
         }
       }
@@ -97,6 +126,7 @@ export async function createFounderClaimedListing({
   socialLinks,
   startingPrice,
   tagline,
+  promoVideoUrl,
   videoUrls,
   websiteUrl
 }: {
@@ -113,6 +143,7 @@ export async function createFounderClaimedListing({
   socialLinks: Partial<Record<"discord" | "linkedin" | "x" | "youtube", string>>;
   startingPrice: number;
   tagline: string;
+  promoVideoUrl?: string;
   videoUrls: string[];
   websiteUrl: string;
 }) {
@@ -136,6 +167,7 @@ export async function createFounderClaimedListing({
     select: { role: true }
   });
   const founderVerified = await isFounderPaymentVerified(founderId, owner?.role ?? "user");
+  const normalizedPromoVideo = promoVideoUrl ? normalizeYoutubeEmbedUrl(promoVideoUrl) : null;
   const tool = await prisma.tool.create({
     data: {
       slug,
@@ -154,7 +186,8 @@ export async function createFounderClaimedListing({
       socialLinks,
       metadata: {
         features: filterDisplayFeatures(features),
-        faqs: []
+        faqs: [],
+        ...(normalizedPromoVideo ? { promoVideoUrl: normalizedPromoVideo } : {})
       }
     }
   });
@@ -169,6 +202,7 @@ export async function createFounderClaimedListing({
 
   await createMediaAssets({
     founderId,
+    promoVideoUrl: normalizedPromoVideo ?? undefined,
     screenshotUrls: filterLikelyImageUrls(screenshotUrls),
     toolId: tool.id,
     videoUrls

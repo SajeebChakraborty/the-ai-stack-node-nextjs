@@ -37,7 +37,7 @@ export function FounderMetricCards({ metrics }: { metrics: FounderDashboardMetri
   return (
     <div className="grid gap-4 md:grid-cols-4">
       {cards.map(({ icon: Icon, label, value, hint }) => (
-        <Card key={label}>
+        <Card key={label} className="border-border/80 bg-card/60 shadow-none">
           <CardContent className="p-5">
             <Icon className="mb-4 h-5 w-5 text-primary" />
             <p className="text-sm text-muted-foreground">{label}</p>

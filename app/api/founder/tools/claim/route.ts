@@ -27,6 +27,7 @@ const claimSchema = z.object({
   socialYouTube: z.string().trim().url().optional().or(z.literal("")),
   startingPrice: z.coerce.number().min(0),
   tagline: z.string().trim().min(4).max(160),
+  promoVideoUrl: z.string().trim().url().optional().or(z.literal("")),
   videoUrls: z.string().trim().optional().default(""),
   websiteUrl: z.string().trim().url()
 });
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       },
       startingPrice: payload.data.startingPrice,
       tagline: payload.data.tagline,
+      promoVideoUrl: payload.data.promoVideoUrl || undefined,
       videoUrls: parseListInput(payload.data.videoUrls),
       websiteUrl: payload.data.websiteUrl
     });

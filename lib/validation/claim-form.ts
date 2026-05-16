@@ -14,6 +14,7 @@ export type ClaimFormValues = {
   pricingModel: string;
   startingPrice: string;
   screenshotUrls: string;
+  promoVideoUrl: string;
   videoUrls: string;
   socialX: string;
   socialLinkedIn: string;
@@ -133,6 +134,16 @@ export function validateClaimForm(values: ClaimFormValues): string[] {
   const invalidScreenshots = screenshotUrls.filter((url) => !isLikelyImageUrl(url));
   if (invalidScreenshots.length) {
     errors.push("Screenshot URLs must be direct image links (PNG, JPG, WebP, etc.), not product or homepage links.");
+  }
+
+  if (values.promoVideoUrl.trim() && !isValidUrl(values.promoVideoUrl)) {
+    errors.push("Promo video link must be a valid URL (YouTube, Vimeo, or embed link).");
+  }
+
+  const extraVideoUrls = parseListInput(values.videoUrls);
+  const invalidExtraVideos = extraVideoUrls.filter((url) => !isValidUrl(url));
+  if (invalidExtraVideos.length) {
+    errors.push("Additional video links must be valid URLs.");
   }
 
   return errors;

@@ -17,3 +17,24 @@ export function getMemberCompanyName(displayName: string) {
   const firstName = displayName.trim().split(/\s+/)[0] ?? "Member";
   return `${firstName}'s company`;
 }
+
+/** Header account badge — hide legacy `founder` label; members show as User. */
+export function getHeaderRoleLabel(role: Role): string | null {
+  if (role === "founder") {
+    return null;
+  }
+
+  if (role === "user" || role === "moderator") {
+    return "User";
+  }
+
+  if (role === "creator") {
+    return "Creator";
+  }
+
+  if (role === "admin") {
+    return "Admin";
+  }
+
+  return null;
+}

@@ -65,7 +65,7 @@ export function FounderVerificationBanner({
       : `${entitlements.claimsUsed} / ${entitlements.claimLimit} claims used`;
 
   return (
-    <div className="mb-6 rounded-lg border p-4">
+    <div className="glass-panel mb-6 rounded-2xl p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">{copy.accountEyebrow}</p>

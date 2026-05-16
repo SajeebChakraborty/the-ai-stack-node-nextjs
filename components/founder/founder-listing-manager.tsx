@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ClaimFeedbackDialog } from "@/components/founder/claim-feedback-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,14 +12,36 @@ import type { FounderManagedTool } from "@/lib/queries/tools";
 import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
 import { getDashboardCopy } from "@/lib/dashboard/copy";
 import { CREATE_CLAIM_SECTION_ID, scrollToCreateClaimSection } from "@/lib/founder/claim-section";
+import { showErrorAlert, showErrorListAlert, showSuccessAlert, showUpgradeAlert } from "@/lib/ui/sweet-alert";
 import { validateClaimForm, type ClaimFormValues } from "@/lib/validation/claim-form";
+import "sweetalert2/dist/sweetalert2.min.css";
+import { cn } from "@/lib/utils/cn";
+
+function ClaimField({
+  label,
+  children,
+  className
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cn("grid gap-2 text-sm", className)}>
+      <span className="font-medium text-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
 
 export function FounderListingManager({
   copyVariant = "user",
+  section = "all",
   tools,
   entitlements
 }: {
   copyVariant?: DashboardCopyVariant;
+  section?: "all" | "create" | "list";
   tools: FounderManagedTool[];
   entitlements: FounderEntitlementsView;
 }) {
@@ -39,6 +60,7 @@ export function FounderListingManager({
     pricingModel: "freemium",
     startingPrice: "0",
     screenshotUrls: "",
+    promoVideoUrl: "",
     videoUrls: "",
     socialX: "",
     socialLinkedIn: "",
@@ -46,10 +68,6 @@ export function FounderListingManager({
     socialDiscord: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogTitle, setDialogTitle] = useState("Check your listing details");
-  const [dialogMessages, setDialogMessages] = useState<string[]>([]);
-  const [dialogVariant, setDialogVariant] = useState<"validation" | "upgrade" | "success">("validation");
 
   const claimSummary =
     entitlements.claimLimit === null
@@ -57,17 +75,10 @@ export function FounderListingManager({
       : `${entitlements.claimsUsed} / ${entitlements.claimLimit} claims used`;
 
   useEffect(() => {
-    if (window.location.hash === `#${CREATE_CLAIM_SECTION_ID}`) {
+    if (section !== "all" && window.location.hash === `#${CREATE_CLAIM_SECTION_ID}`) {
       scrollToCreateClaimSection();
     }
-  }, []);
-
-  function showDialog(title: string, messages: string[], variant: "validation" | "upgrade" | "success") {
-    setDialogTitle(title);
-    setDialogMessages(messages);
-    setDialogVariant(variant);
-    setDialogOpen(true);
-  }
+  }, [section]);
 
   function updateField<K extends keyof ClaimFormValues>(key: K, value: ClaimFormValues[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -75,30 +86,24 @@ export function FounderListingManager({
 
   async function claimListing() {
     if (!entitlements.verified) {
-      showDialog(
-        "Verification required",
-        [copy.notVerifiedClaimMessage],
-        "upgrade"
-      );
+      void showUpgradeAlert({ title: "Verification required", text: copy.notVerifiedClaimMessage });
       return;
     }
 
     if (!entitlements.canClaimMore) {
-      showDialog(
-        "Claim limit reached",
-        [
+      void showUpgradeAlert({
+        title: "Claim limit reached",
+        text:
           entitlements.claimLimit === null
             ? "You cannot claim more listings on your current plan."
             : `Your ${entitlements.planName ?? "plan"} includes ${entitlements.claimLimit} claimed listing${entitlements.claimLimit === 1 ? "" : "s"}. Upgrade to claim more.`
-        ],
-        "upgrade"
-      );
+      });
       return;
     }
 
     const validationErrors = validateClaimForm(form);
     if (validationErrors.length > 0) {
-      showDialog("Fix these fields", validationErrors, "validation");
+      void showErrorListAlert({ title: "Fix these fields", messages: validationErrors });
       return;
     }
 
@@ -124,7 +129,10 @@ export function FounderListingManager({
       };
       if (!response.ok) {
         if (payload.code === "CLAIM_LIMIT_REACHED" || payload.code === "NOT_VERIFIED") {
-          showDialog("Upgrade required", [payload.error ?? "Upgrade your plan to claim more listings."], "upgrade");
+          void showUpgradeAlert({
+            title: "Upgrade required",
+            text: payload.error ?? "Upgrade your plan to claim more listings."
+          });
           return;
         }
 
@@ -133,11 +141,14 @@ export function FounderListingManager({
             ? payload.messages
             : [payload.error ?? "Listing creation failed. Check your details and try again."];
 
-        showDialog("Could not create listing", errorMessages, "validation");
+        void showErrorListAlert({ title: "Could not create listing", messages: errorMessages });
         return;
       }
 
-      showDialog("Listing created", [payload.message ?? "Your claimed listing was created successfully."], "success");
+      void showSuccessAlert({
+        title: "Listing created",
+        text: payload.message ?? "Your claimed listing was created successfully."
+      });
       setForm({
         name: "",
         slug: "",
@@ -151,6 +162,7 @@ export function FounderListingManager({
         pricingModel: "freemium",
         startingPrice: "0",
         screenshotUrls: "",
+        promoVideoUrl: "",
         videoUrls: "",
         socialX: "",
         socialLinkedIn: "",
@@ -159,7 +171,7 @@ export function FounderListingManager({
       });
       router.refresh();
     } catch {
-      showDialog("Could not create listing", ["Something went wrong. Please try again."], "validation");
+      void showErrorAlert({ title: "Could not create listing", text: "Something went wrong. Please try again." });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,41 +179,88 @@ export function FounderListingManager({
 
   return (
     <div className="space-y-6">
-      <ClaimFeedbackDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title={dialogTitle}
-        messages={dialogMessages}
-        variant={dialogVariant}
-      />
-      <Card id={CREATE_CLAIM_SECTION_ID} className="scroll-mt-28">
+      {section === "create" ? (
+        <div className="mb-6 border-b border-border/60 pb-4">
+          <h2 className="text-xl font-semibold">Claim create</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Add a new tool listing to the directory.</p>
+        </div>
+      ) : null}
+
+      {(section === "all" || section === "create") ? (
+      <Card id={CREATE_CLAIM_SECTION_ID} className="scroll-mt-28 border-border/80 bg-card/50 shadow-none">
         <CardHeader>
           <CardTitle>Create claimed listing</CardTitle>
           <p className="text-sm text-muted-foreground">{claimSummary}</p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => updateField("name", event.target.value)} placeholder="Tool name" value={form.name} />
-            <Input onChange={(event) => updateField("slug", event.target.value)} placeholder="Slug, for example clipnova" value={form.slug} />
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <ClaimField label="Tool name">
+              <Input onChange={(event) => updateField("name", event.target.value)} placeholder="e.g. Antigravity" value={form.name} />
+            </ClaimField>
+            <ClaimField label="Slug">
+              <Input
+                onChange={(event) => updateField("slug", event.target.value)}
+                placeholder="e.g. clipnova (lowercase, hyphens only)"
+                value={form.slug}
+              />
+            </ClaimField>
           </div>
-          <Input onChange={(event) => updateField("tagline", event.target.value)} placeholder="Short tagline" value={form.tagline} />
-          <Textarea
-            onChange={(event) => updateField("description", event.target.value)}
-            placeholder="Describe what this tool does, who it is for, and the main workflow outcomes."
-            value={form.description}
-          />
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => updateField("websiteUrl", event.target.value)} placeholder="Primary redirect / website link" value={form.websiteUrl} />
-            <Input onChange={(event) => updateField("affiliateUrl", event.target.value)} placeholder="Optional affiliate / redirect link" value={form.affiliateUrl} />
+          <ClaimField label="Short tagline">
+            <Input onChange={(event) => updateField("tagline", event.target.value)} placeholder="One-line summary of your tool" value={form.tagline} />
+          </ClaimField>
+          <ClaimField label="Description">
+            <Textarea
+              onChange={(event) => updateField("description", event.target.value)}
+              placeholder="What it does, who it is for, and main workflow outcomes."
+              rows={4}
+              value={form.description}
+            />
+          </ClaimField>
+          <div className="grid gap-4 md:grid-cols-2">
+            <ClaimField label="Primary website link">
+              <Input
+                onChange={(event) => updateField("websiteUrl", event.target.value)}
+                placeholder="https://yourproduct.com"
+                type="url"
+                value={form.websiteUrl}
+              />
+            </ClaimField>
+            <ClaimField label="Affiliate link (optional)">
+              <Input
+                onChange={(event) => updateField("affiliateUrl", event.target.value)}
+                placeholder="https://..."
+                type="url"
+                value={form.affiliateUrl}
+              />
+            </ClaimField>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => updateField("logoUrl", event.target.value)} placeholder="Logo image URL" value={form.logoUrl} />
-            <Input onChange={(event) => updateField("categories", event.target.value)} placeholder="Categories, separated by commas" value={form.categories} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <ClaimField label="Logo image URL">
+              <Input
+                onChange={(event) => updateField("logoUrl", event.target.value)}
+                placeholder="https://.../logo.png"
+                type="url"
+                value={form.logoUrl}
+              />
+            </ClaimField>
+            <ClaimField label="Categories">
+              <Input
+                onChange={(event) => updateField("categories", event.target.value)}
+                placeholder="e.g. Productivity, AI agents"
+                value={form.categories}
+              />
+            </ClaimField>
           </div>
-          <Textarea onChange={(event) => updateField("features", event.target.value)} placeholder="Key features, separated by commas or new lines" value={form.features} />
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-2 text-sm text-muted-foreground">
-              <span>Pricing model</span>
+          <ClaimField label="Key features">
+            <Textarea
+              onChange={(event) => updateField("features", event.target.value)}
+              placeholder="Separate with commas or new lines"
+              rows={3}
+              value={form.features}
+            />
+          </ClaimField>
+          <div className="grid gap-4 md:grid-cols-2">
+            <ClaimField label="Pricing model">
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 onChange={(event) => updateField("pricingModel", event.target.value)}
@@ -213,21 +272,74 @@ export function FounderListingManager({
                 <option value="usage-based">Usage based</option>
                 <option value="enterprise">Enterprise</option>
               </select>
-            </label>
-            <Input
-              onChange={(event) => updateField("startingPrice", event.target.value)}
-              placeholder="Starting monthly price"
-              type="number"
-              value={form.startingPrice}
-            />
+            </ClaimField>
+            <ClaimField label="Starting monthly price">
+              <Input
+                onChange={(event) => updateField("startingPrice", event.target.value)}
+                min={0}
+                placeholder="0"
+                type="number"
+                value={form.startingPrice}
+              />
+            </ClaimField>
           </div>
-          <Textarea onChange={(event) => updateField("screenshotUrls", event.target.value)} placeholder="Screenshot URLs, separated by new lines" value={form.screenshotUrls} />
-          <Textarea onChange={(event) => updateField("videoUrls", event.target.value)} placeholder="YouTube or embed video links, separated by new lines" value={form.videoUrls} />
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input onChange={(event) => updateField("socialX", event.target.value)} placeholder="X profile URL" value={form.socialX} />
-            <Input onChange={(event) => updateField("socialLinkedIn", event.target.value)} placeholder="LinkedIn profile URL" value={form.socialLinkedIn} />
-            <Input onChange={(event) => updateField("socialYouTube", event.target.value)} placeholder="YouTube channel URL" value={form.socialYouTube} />
-            <Input onChange={(event) => updateField("socialDiscord", event.target.value)} placeholder="Discord invite URL" value={form.socialDiscord} />
+          <ClaimField label="Screenshot URLs">
+            <Textarea
+              onChange={(event) => updateField("screenshotUrls", event.target.value)}
+              placeholder="One image URL per line"
+              rows={3}
+              value={form.screenshotUrls}
+            />
+          </ClaimField>
+          <ClaimField label="Promo video link">
+            <Input
+              onChange={(event) => updateField("promoVideoUrl", event.target.value)}
+              placeholder="YouTube or any video link (optional)"
+              type="url"
+              value={form.promoVideoUrl}
+            />
+          </ClaimField>
+          <ClaimField label="Additional video links (optional)">
+            <Textarea
+              onChange={(event) => updateField("videoUrls", event.target.value)}
+              placeholder="One link per line"
+              rows={2}
+              value={form.videoUrls}
+            />
+          </ClaimField>
+          <div className="grid gap-4 md:grid-cols-2">
+            <ClaimField label="X profile URL">
+              <Input
+                onChange={(event) => updateField("socialX", event.target.value)}
+                placeholder="https://x.com/..."
+                type="url"
+                value={form.socialX}
+              />
+            </ClaimField>
+            <ClaimField label="LinkedIn profile URL">
+              <Input
+                onChange={(event) => updateField("socialLinkedIn", event.target.value)}
+                placeholder="https://linkedin.com/..."
+                type="url"
+                value={form.socialLinkedIn}
+              />
+            </ClaimField>
+            <ClaimField label="YouTube channel URL">
+              <Input
+                onChange={(event) => updateField("socialYouTube", event.target.value)}
+                placeholder="https://youtube.com/..."
+                type="url"
+                value={form.socialYouTube}
+              />
+            </ClaimField>
+            <ClaimField label="Discord invite URL">
+              <Input
+                onChange={(event) => updateField("socialDiscord", event.target.value)}
+                placeholder="https://discord.gg/..."
+                type="url"
+                value={form.socialDiscord}
+              />
+            </ClaimField>
           </div>
           <Button disabled={isSubmitting} onClick={claimListing}>
             {isSubmitting ? "Creating..." : "Create claimed listing"}
@@ -237,16 +349,25 @@ export function FounderListingManager({
           </p>
         </CardContent>
       </Card>
+      ) : null}
 
-      <div className="grid gap-4">
-        {tools.length ? (
-          tools.map((tool) => <ManagedToolCard key={tool.id} copyVariant={copyVariant} tool={tool} />)
-        ) : (
-          <Card>
-            <CardContent className="p-5 text-sm text-muted-foreground">{copy.emptyListings}</CardContent>
-          </Card>
-        )}
-      </div>
+      {(section === "all" || section === "list") ? (
+        <div className="grid gap-4">
+          {section === "list" ? (
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold">Your claimed listings</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{claimSummary}</p>
+            </div>
+          ) : null}
+          {tools.length ? (
+            tools.map((tool) => <ManagedToolCard key={tool.id} copyVariant={copyVariant} tool={tool} />)
+          ) : (
+            <Card className="border-border/80 bg-card/50 shadow-none">
+              <CardContent className="p-5 text-sm text-muted-foreground">{copy.emptyListings}</CardContent>
+            </Card>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
