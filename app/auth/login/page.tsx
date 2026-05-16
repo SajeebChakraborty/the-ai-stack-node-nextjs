@@ -14,15 +14,14 @@ type Props = {
 
 export default async function LoginPage({ searchParams }: Props) {
   const { next, error, message } = await searchParams;
-  const nextPath = next?.startsWith("/") ? next : "/directory";
   const user = await getCurrentUser();
   if (user) {
-    redirect(user.role === "user" || user.role === "creator" || user.role === "moderator" ? nextPath : getDefaultHomeForRole(user.role));
+    redirect(next?.startsWith("/") ? next : getDefaultHomeForRole(user.role));
   }
 
   return (
     <div className="section-shell">
-      <LoginForm error={error} message={message} mode="user" next={nextPath} />
+      <LoginForm error={error} message={message} mode="user" next={next?.startsWith("/") ? next : "/user/dashboard"} />
     </div>
   );
 }

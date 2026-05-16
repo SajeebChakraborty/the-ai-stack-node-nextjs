@@ -3,17 +3,22 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
+import { getDashboardCopy } from "@/lib/dashboard/copy";
 import type { FounderEntitlementsView } from "@/types/founder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export function FounderVerificationBanner({
+  copyVariant = "user",
   initialVerified,
   initialEntitlements
 }: {
+  copyVariant?: DashboardCopyVariant;
   initialVerified: boolean;
   initialEntitlements: FounderEntitlementsView;
 }) {
+  const copy = getDashboardCopy(copyVariant);
   const searchParams = useSearchParams();
   const [verified, setVerified] = useState(initialVerified);
   const [entitlements, setEntitlements] = useState(initialEntitlements);
@@ -63,11 +68,11 @@ export function FounderVerificationBanner({
     <div className="mb-6 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Founder account</p>
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">{copy.accountEyebrow}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {verified
-              ? `Your founder plan is active on ${entitlements.planName ?? "your subscription"}. ${claimSummary}.`
-              : "Complete a founder plan payment to unlock verified founder status and listing tools."}
+              ? copy.accountVerifiedPlan(entitlements.planName ?? "your subscription", claimSummary)
+              : copy.accountUnverified}
           </p>
           {message ? <p className="mt-2 text-sm text-green-600 dark:text-green-400">{message}</p> : null}
         </div>

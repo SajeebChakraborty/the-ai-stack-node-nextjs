@@ -131,7 +131,11 @@ export async function createFounderClaimedListing({
   }
 
   const categoryRecords = await Promise.all(categories.map((categoryName) => ensureCategory(categoryName)));
-  const founderVerified = await isFounderPaymentVerified(founderId, "founder");
+  const owner = await prisma.profile.findUnique({
+    where: { id: founderId },
+    select: { role: true }
+  });
+  const founderVerified = await isFounderPaymentVerified(founderId, owner?.role ?? "user");
   const tool = await prisma.tool.create({
     data: {
       slug,

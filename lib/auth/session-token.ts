@@ -1,4 +1,5 @@
 import type { Role } from "@/types/domain";
+import { canUseMemberDashboard } from "@/lib/auth/member-roles";
 
 export const authSessionCookie = "theaistack_session";
 
@@ -93,11 +94,13 @@ export function getDefaultHomeForRole(role: Role) {
   switch (role) {
     case "admin":
       return "/admin/dashboard";
-    case "founder":
-      return "/founder/dashboard";
     case "creator":
       return "/creator/dashboard";
     default:
+      if (canUseMemberDashboard(role)) {
+        return "/user/dashboard";
+      }
+
       return "/directory";
   }
 }
@@ -111,9 +114,9 @@ export function getLoginPathForRoles(allowedRoles?: Role[]) {
     return "/auth/admin/login";
   }
 
-  if (allowedRoles.includes("founder")) {
-    return "/auth/founder/login";
-  }
+  // if (allowedRoles.includes("founder")) {
+  //   return "/auth/founder/login";
+  // }
 
   return "/auth/login";
 }

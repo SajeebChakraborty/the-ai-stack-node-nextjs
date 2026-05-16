@@ -10,8 +10,7 @@ function buildRedirect(request: Request, path: string, searchKey: "error" | "mes
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const token = requestUrl.searchParams.get("token");
-  const requestedRole = requestUrl.searchParams.get("role") === "founder" ? "founder" : "user";
-  const fallbackLoginPath = requestedRole === "founder" ? "/auth/founder/login" : "/auth/login";
+  const fallbackLoginPath = "/auth/login";
 
   if (!token) {
     return buildRedirect(request, fallbackLoginPath, "error", "verification-link-invalid");

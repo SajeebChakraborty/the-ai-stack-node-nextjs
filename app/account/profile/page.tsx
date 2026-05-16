@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AccountProfilePage() {
-  const user = await requireUser("/account/profile", ["user", "creator", "moderator"]);
+  const user = await requireUser("/account/profile", ["user", "creator", "moderator", "founder"]);
   const profile = await getEditableProfile(user.id);
 
   if (!profile) {

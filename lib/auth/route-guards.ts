@@ -1,7 +1,9 @@
 import type { Role } from "@/types/domain";
+import { MEMBER_DASHBOARD_ROLES } from "@/lib/auth/member-roles";
 import { getDefaultHomeForRole, getLoginPathForRoles } from "@/lib/auth/session-token";
 
 export const adminLoginPath = "/auth/admin/login";
+/** @deprecated Separate founder login hidden — use userLoginPath. */
 export const founderLoginPath = "/auth/founder/login";
 export const userLoginPath = "/auth/login";
 
@@ -32,6 +34,14 @@ export function isFounderAppRoute(pathname: string) {
   return pathname === "/founder" || pathname.startsWith("/founder/");
 }
 
+export function isUserAppRoute(pathname: string) {
+  if (isAuthPath(pathname)) {
+    return false;
+  }
+
+  return pathname === "/user" || pathname.startsWith("/user/");
+}
+
 export const protectedRouteGuards: RouteGuard[] = [
   {
     match: isAdminAppRoute,
@@ -39,9 +49,16 @@ export const protectedRouteGuards: RouteGuard[] = [
     loginPath: adminLoginPath
   },
   {
+    match: isUserAppRoute,
+    allowedRoles: [...MEMBER_DASHBOARD_ROLES],
+    loginPath: userLoginPath
+  },
+  {
     match: isFounderAppRoute,
-    allowedRoles: ["founder"],
-    loginPath: founderLoginPath
+    allowedRoles: [...MEMBER_DASHBOARD_ROLES],
+    loginPath: userLoginPath
+    // allowedRoles: ["founder"],
+    // loginPath: founderLoginPath
   },
   {
     match: (pathname) => pathname === "/creator" || pathname.startsWith("/creator/"),
@@ -50,7 +67,7 @@ export const protectedRouteGuards: RouteGuard[] = [
   },
   {
     match: (pathname) => pathname === "/account" || pathname.startsWith("/account/"),
-    allowedRoles: ["user", "creator", "moderator"],
+    allowedRoles: [...MEMBER_DASHBOARD_ROLES],
     loginPath: userLoginPath
   },
   {
@@ -60,8 +77,10 @@ export const protectedRouteGuards: RouteGuard[] = [
   },
   {
     match: (pathname) => pathname.startsWith("/api/founder/"),
-    allowedRoles: ["founder"],
-    loginPath: founderLoginPath
+    allowedRoles: [...MEMBER_DASHBOARD_ROLES],
+    loginPath: userLoginPath
+    // allowedRoles: ["founder"],
+    // loginPath: founderLoginPath
   },
   {
     match: (pathname) => pathname === "/api/stripe/checkout" || pathname === "/api/stripe/portal",
@@ -82,7 +101,7 @@ export const protectedRouteGuards: RouteGuard[] = [
 const publicAuthPaths = new Set([
   userLoginPath,
   adminLoginPath,
-  founderLoginPath,
+  founderLoginPath, // legacy URL redirects to user login
   "/auth/callback",
   "/auth/verify-email"
 ]);

@@ -1,29 +1,31 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { LoginForm } from "@/components/auth/login-form";
-import { getCurrentUser, getDefaultHomeForRole } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
-  title: "Founder Login",
-  description: "Sign in to TheAiStack as a founder with email/password or Google."
+  title: "Sign in",
+  description: "Sign in to TheAiStack to manage listings, claims, and your dashboard."
 };
 
 type Props = {
   searchParams: Promise<{ next?: string; error?: string; message?: string }>;
 };
 
+/** Legacy founder login — one member login at /auth/login. */
 export default async function FounderLoginPage({ searchParams }: Props) {
   const { next, error, message } = await searchParams;
-  const nextPath = next?.startsWith("/") ? next : "/founder/dashboard";
-  const user = await getCurrentUser();
-
-  if (user) {
-    redirect(user.role === "founder" ? nextPath : getDefaultHomeForRole(user.role));
+  const params = new URLSearchParams();
+  params.set("next", next?.startsWith("/") ? next : "/user/dashboard");
+  if (error) {
+    params.set("error", error);
+  }
+  if (message) {
+    params.set("message", message);
   }
 
-  return (
-    <div className="section-shell">
-      <LoginForm error={error} message={message} mode="founder" next={nextPath} />
-    </div>
-  );
+  redirect(`/auth/login?${params.toString()}`);
+
+  // import { LoginForm } from "@/components/auth/login-form";
+  // import { getCurrentUser, getDefaultHomeForRole } from "@/lib/auth/session";
+  // ...
+  // <LoginForm mode="founder" ... />
 }

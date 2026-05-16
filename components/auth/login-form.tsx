@@ -1,22 +1,22 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils/cn";
+import { showErrorAlert, showSuccessAlert } from "@/lib/ui/sweet-alert";
+import {
+  validateAdminSignInFields,
+  validateSignInFields,
+  validateSignUpFields
+} from "@/lib/validation/auth-form";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 type LoginMode = "user" | "admin" | "founder";
 type AuthTab = "signin" | "signup";
-type StatusTone = "default" | "error" | "success";
-
-type StatusState = {
-  message: string;
-  tone: StatusTone;
-} | null;
 
 const copyByMode: Record<
   LoginMode,
@@ -57,51 +57,68 @@ const copyByMode: Record<
   }
 };
 
-function getStatusFromSearchParams(error: string | null | undefined, message: string | null | undefined): StatusState {
+function getMessageFromSearchParams(error: string | null | undefined, message: string | null | undefined) {
   switch (error) {
     case "google-not-configured":
-      return { message: "Google OAuth is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Google sign in unavailable",
+        text: "Google OAuth is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+      };
     case "invalid-google-session":
-      return { message: "Your Google sign in session expired. Please try again.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Session expired",
+        text: "Your Google sign in session expired. Please try again."
+      };
     case "google-login-failed":
-      return { message: "Google sign in failed. Please try again.", tone: "error" };
+      return { tone: "error" as const, title: "Google sign in failed", text: "Please try again." };
     case "google-email-not-verified":
-      return { message: "Your Google account email must be verified before you can continue.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Email not verified",
+        text: "Your Google account email must be verified before you can continue."
+      };
     case "google-account-conflict":
-      return { message: "That Google account is already linked to another profile.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Account conflict",
+        text: "That Google account is already linked to another profile."
+      };
     case "wrong-account-portal":
-      return { message: "This account belongs to a different login portal. Use the correct User, Founder, or Admin sign in page.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Wrong login page",
+        text: "This account belongs to a different login portal. Use the correct sign in page."
+      };
     case "verification-link-invalid":
-      return { message: "That verification link is invalid or expired. Register again to receive a fresh email.", tone: "error" };
+      return {
+        tone: "error" as const,
+        title: "Invalid verification link",
+        text: "That link is invalid or expired. Register again to receive a fresh email."
+      };
     default:
       break;
   }
 
   if (message === "email-verified") {
-    return { message: "Your email has been verified. You can sign in now.", tone: "success" };
+    return {
+      tone: "success" as const,
+      title: "Email verified",
+      text: "Your email has been verified. You can sign in now."
+    };
   }
 
   return null;
 }
 
-function getStatusClassName(tone: StatusTone) {
-  switch (tone) {
-    case "error":
-      return "text-sm text-destructive";
-    case "success":
-      return "text-sm text-green-600 dark:text-green-400";
-    default:
-      return "text-sm text-muted-foreground";
-  }
-}
-
-function getRequestedRole(mode: LoginMode) {
-  return mode === "founder" ? "founder" : "user";
+function getRequestedRole(_mode: LoginMode) {
+  return "user" as const;
 }
 
 export function LoginForm({
   mode,
-  next = "/directory",
+  next = "/user/dashboard",
   error,
   message
 }: {
@@ -111,21 +128,39 @@ export function LoginForm({
   message?: string;
 }) {
   const [activeTab, setActiveTab] = useState<AuthTab>("signin");
-  const [status, setStatus] = useState<StatusState>(() => getStatusFromSearchParams(error, message));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState(copyByMode[mode].defaultEmail ?? "");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
 
-  async function signInWithGoogle() {
-    setStatus({ message: "Redirecting to Google...", tone: "default" });
-    window.location.href = `/api/auth/google?role=${getRequestedRole(mode)}&next=${encodeURIComponent(next)}`;
+  useEffect(() => {
+    const alertPayload = getMessageFromSearchParams(error, message);
+    if (!alertPayload) {
+      return;
+    }
+
+    if (alertPayload.tone === "error") {
+      void showErrorAlert({ title: alertPayload.title, text: alertPayload.text });
+      return;
+    }
+
+    void showSuccessAlert({ title: alertPayload.title, text: alertPayload.text });
+  }, [error, message]);
+
+  function signInWithGoogle() {
+    window.location.href = `/api/auth/google?next=${encodeURIComponent(next)}`;
   }
 
   async function handleAdminLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const validationError = validateAdminSignInFields(email, password);
+    if (validationError) {
+      void showErrorAlert({ title: "Check your details", text: validationError });
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus({ message: "Checking admin credentials...", tone: "default" });
 
     try {
       const response = await fetch("/api/auth/admin/login", {
@@ -146,13 +181,19 @@ export function LoginForm({
       };
 
       if (!response.ok || !payload.redirectTo) {
-        setStatus({ message: payload.error ?? "Admin login failed.", tone: "error" });
+        void showErrorAlert({
+          title: "Admin sign in failed",
+          text: payload.error ?? "Check your admin email and password."
+        });
         return;
       }
 
       window.location.href = payload.redirectTo;
     } catch {
-      setStatus({ message: "Admin login failed. Please try again.", tone: "error" });
+      void showErrorAlert({
+        title: "Admin sign in failed",
+        text: "Something went wrong. Please try again."
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -160,8 +201,14 @@ export function LoginForm({
 
   async function handleEmailLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const validationError = validateSignInFields(email, password);
+    if (validationError) {
+      void showErrorAlert({ title: "Check your details", text: validationError });
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus({ message: "Signing you in...", tone: "default" });
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -170,7 +217,7 @@ export function LoginForm({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          email,
+          email: email.trim(),
           next,
           password,
           role: getRequestedRole(mode)
@@ -183,13 +230,19 @@ export function LoginForm({
       };
 
       if (!response.ok || !payload.redirectTo) {
-        setStatus({ message: payload.error ?? "Sign in failed.", tone: "error" });
+        void showErrorAlert({
+          title: "Sign in failed",
+          text: payload.error ?? "Invalid email or password."
+        });
         return;
       }
 
       window.location.href = payload.redirectTo;
     } catch {
-      setStatus({ message: "Sign in failed. Please try again.", tone: "error" });
+      void showErrorAlert({
+        title: "Sign in failed",
+        text: "Something went wrong. Please try again."
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -197,8 +250,14 @@ export function LoginForm({
 
   async function handleRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const validationError = validateSignUpFields(name, email, password);
+    if (validationError) {
+      void showErrorAlert({ title: "Check your details", text: validationError });
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus({ message: "Creating your account...", tone: "default" });
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -207,8 +266,8 @@ export function LoginForm({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          email,
-          name,
+          email: email.trim(),
+          name: name.trim(),
           password,
           role: getRequestedRole(mode)
         })
@@ -220,17 +279,23 @@ export function LoginForm({
       };
 
       if (!response.ok) {
-        setStatus({ message: payload.error ?? "Registration failed.", tone: "error" });
+        void showErrorAlert({
+          title: "Registration failed",
+          text: payload.error ?? "Could not create your account. Please try again."
+        });
         return;
       }
 
-      setStatus({
-        message: payload.message ?? "Registration successful. Check your email to verify your account.",
-        tone: "success"
+      void showSuccessAlert({
+        title: "Account created",
+        text: payload.message ?? "Check your email to verify your account before signing in."
       });
       setPassword("");
     } catch {
-      setStatus({ message: "Registration failed. Please try again.", tone: "error" });
+      void showErrorAlert({
+        title: "Registration failed",
+        text: "Something went wrong. Please try again."
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -246,7 +311,7 @@ export function LoginForm({
       </CardHeader>
       <CardContent className="space-y-4">
         {mode === "admin" ? (
-          <form className="space-y-4" onSubmit={handleAdminLogin}>
+          <form className="space-y-4" noValidate onSubmit={handleAdminLogin}>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="admin-email">
                 Username
@@ -256,7 +321,6 @@ export function LoginForm({
                 autoComplete="username"
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="admin@gmail.com"
-                required
                 type="email"
                 value={email}
               />
@@ -270,7 +334,6 @@ export function LoginForm({
                 autoComplete="current-password"
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="12345678"
-                required
                 type="password"
                 value={password}
               />
@@ -286,7 +349,7 @@ export function LoginForm({
               <TabsTrigger value="signup">Sign up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin" className="space-y-4">
-              <form className="space-y-4" onSubmit={handleEmailLogin}>
+              <form className="space-y-4" noValidate onSubmit={handleEmailLogin}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium" htmlFor={`${mode}-signin-email`}>
                     Email
@@ -296,7 +359,6 @@ export function LoginForm({
                     autoComplete="email"
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
-                    required
                     type="email"
                     value={email}
                   />
@@ -310,7 +372,6 @@ export function LoginForm({
                     autoComplete="current-password"
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Enter your password"
-                    required
                     type="password"
                     value={password}
                   />
@@ -326,7 +387,7 @@ export function LoginForm({
               </Button>
             </TabsContent>
             <TabsContent value="signup" className="space-y-4">
-              <form className="space-y-4" onSubmit={handleRegistration}>
+              <form className="space-y-4" noValidate onSubmit={handleRegistration}>
                 <div className="space-y-2">
                   <label className="text-sm font-medium" htmlFor={`${mode}-signup-name`}>
                     Name
@@ -336,7 +397,6 @@ export function LoginForm({
                     autoComplete="name"
                     onChange={(event) => setName(event.target.value)}
                     placeholder="Your full name"
-                    required
                     value={name}
                   />
                 </div>
@@ -349,7 +409,6 @@ export function LoginForm({
                     autoComplete="email"
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
-                    required
                     type="email"
                     value={email}
                   />
@@ -361,10 +420,8 @@ export function LoginForm({
                   <Input
                     id={`${mode}-signup-password`}
                     autoComplete="new-password"
-                    minLength={8}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Create a password"
-                    required
+                    placeholder="Create a password (min. 8 characters)"
                     type="password"
                     value={password}
                   />
@@ -383,7 +440,6 @@ export function LoginForm({
           </Tabs>
         )}
         <p className="text-sm text-muted-foreground">{copy.helperText}</p>
-        {status ? <p className={cn(getStatusClassName(status.tone))}>{status.message}</p> : null}
       </CardContent>
     </Card>
   );

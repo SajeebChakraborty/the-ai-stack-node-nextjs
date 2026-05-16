@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Role } from "@/types/domain";
+import { canUseMemberDashboard, ensureFounderProfileRecord } from "@/lib/auth/member-access";
 import { prisma } from "@/lib/db/prisma";
 
 const activeSubscriptionStatuses = ["active", "trialing"] as const;
@@ -57,23 +58,23 @@ export async function syncFounderPaymentVerification(userId: string) {
     }
   });
 
-  if (!profile || profile.role !== "founder") {
+  if (!profile || !canUseMemberDashboard(profile.role)) {
     return false;
   }
 
   const isPaid = await hasFounderPaidSubscription(userId);
-  const companyName = profile.founderProfile?.companyName ?? `${profile.fullName ?? profile.email.split("@")[0]}'s company`;
 
-  await prisma.founderProfile.upsert({
+  await ensureFounderProfileRecord(userId, profile.fullName);
+
+  const founderProfile = await prisma.founderProfile.findUnique({
     where: { userId },
-    update: {
-      verifiedAt: isPaid ? profile.founderProfile?.verifiedAt ?? new Date() : null
-    },
-    create: {
-      userId,
-      companyName,
-      title: "Founder",
-      verifiedAt: isPaid ? new Date() : null
+    select: { verifiedAt: true }
+  });
+
+  await prisma.founderProfile.update({
+    where: { userId },
+    data: {
+      verifiedAt: isPaid ? founderProfile?.verifiedAt ?? new Date() : null
     }
   });
 
@@ -85,7 +86,7 @@ export async function isFounderPaymentVerified(userId: string, role: Role) {
     return true;
   }
 
-  if (role !== "founder") {
+  if (!canUseMemberDashboard(role)) {
     return false;
   }
 

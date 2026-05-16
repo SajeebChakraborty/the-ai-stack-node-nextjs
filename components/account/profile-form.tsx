@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Role } from "@/types/domain";
+import { canUseMemberDashboard } from "@/lib/auth/member-roles";
 import { getHomeForRole } from "@/lib/auth/portals";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,7 +101,7 @@ export function ProfileForm({ profile }: { profile: EditableProfile }) {
             <span className="font-medium">Avatar URL</span>
             <Input value={form.avatarUrl} onChange={(event) => setForm({ ...form, avatarUrl: event.target.value })} type="url" />
           </label>
-          {profile.role === "founder" ? (
+          {canUseMemberDashboard(profile.role) ? (
             <>
               <label className="block space-y-1 text-sm">
                 <span className="font-medium">Company name</span>
@@ -112,6 +113,7 @@ export function ProfileForm({ profile }: { profile: EditableProfile }) {
               </label>
             </>
           ) : null}
+          {/* {profile.role === "founder" ? ( ... founder-only fields ... ) : null} */}
           {profile.role === "creator" ? (
             <label className="block space-y-1 text-sm">
               <span className="font-medium">Niche</span>

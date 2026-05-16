@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { canClaimAndManageListings } from "@/lib/auth/member-access";
 import { getCurrentUser } from "@/lib/auth/session";
 import { assertFounderCanClaim } from "@/lib/founders/entitlements";
 import { createFounderClaimedListing } from "@/lib/tools/claiming";
@@ -36,8 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (user.role !== "founder") {
-    return NextResponse.json({ error: "Only founders can claim listings." }, { status: 403 });
+  if (!canClaimAndManageListings(user.role)) {
+    return NextResponse.json({ error: "Only member accounts can claim listings." }, { status: 403 });
   }
 
   const claimAccess = await assertFounderCanClaim(user.id, user.role);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { canUseMemberDashboard } from "@/lib/auth/member-access";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getEditableProfile } from "@/lib/queries/profile";
 import { prisma } from "@/lib/db/prisma";
@@ -76,7 +77,7 @@ export async function PATCH(request: Request) {
     }
   });
 
-  if (user.role === "founder") {
+  if (canUseMemberDashboard(user.role)) {
     await prisma.founderProfile.upsert({
       where: { userId: user.id },
       update: {

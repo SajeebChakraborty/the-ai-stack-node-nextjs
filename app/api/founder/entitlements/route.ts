@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canClaimAndManageListings } from "@/lib/auth/member-access";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getFounderEntitlements } from "@/lib/founders/entitlements";
 
@@ -8,8 +9,8 @@ export async function GET() {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (user.role !== "founder") {
-    return NextResponse.json({ error: "Only founders can view plan entitlements." }, { status: 403 });
+  if (!canClaimAndManageListings(user.role)) {
+    return NextResponse.json({ error: "Only member accounts can view plan entitlements." }, { status: 403 });
   }
 
   const entitlements = await getFounderEntitlements(user.id, user.role);

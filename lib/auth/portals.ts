@@ -1,16 +1,21 @@
 import type { Role } from "@/types/domain";
+import { canUseMemberDashboard, MEMBER_DASHBOARD_ROLES } from "@/lib/auth/member-roles";
 import { getDefaultHomeForRole } from "@/lib/auth/session-token";
 
 export type AuthPortal = "user" | "founder" | "admin";
 
-const userPortalRoles: Role[] = ["user", "creator", "moderator"];
+const userPortalRoles: Role[] = [...MEMBER_DASHBOARD_ROLES];
+
+// Legacy founder-only login path (UI hidden; routes still redirect here to /auth/login).
+export const legacyFounderLoginPath = "/auth/founder/login";
 
 export function getLoginPathForPortal(portal: AuthPortal) {
   switch (portal) {
     case "admin":
       return "/auth/admin/login";
     case "founder":
-      return "/auth/founder/login";
+      // return "/auth/founder/login";
+      return "/auth/login";
     default:
       return "/auth/login";
   }
@@ -25,9 +30,9 @@ export function getPortalForRole(role: Role): AuthPortal {
     return "admin";
   }
 
-  if (role === "founder") {
-    return "founder";
-  }
+  // if (role === "founder") {
+  //   return "founder";
+  // }
 
   return "user";
 }
@@ -37,7 +42,7 @@ export function isRoleAllowedInPortal(role: Role, portal: AuthPortal) {
     case "admin":
       return role === "admin";
     case "founder":
-      return role === "founder";
+      return canUseMemberDashboard(role);
     default:
       return userPortalRoles.includes(role);
   }
@@ -57,12 +62,13 @@ export function getHomeForRole(role: Role) {
 }
 
 export function getProfilePathForRole(role: Role) {
-  switch (role) {
-    case "admin":
-      return "/admin/profile";
-    case "founder":
-      return "/founder/profile";
-    default:
-      return "/account/profile";
+  if (role === "admin") {
+    return "/admin/profile";
   }
+
+  // if (role === "founder") {
+  //   return "/founder/profile";
+  // }
+
+  return "/account/profile";
 }

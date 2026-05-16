@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         },
         ...(defaultTaxRateId && !useAutomaticTax ? { default_tax_rates: [defaultTaxRateId] } : {})
       },
-      success_url: `${appUrl}/founder/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${appUrl}/user/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/pricing?checkout=cancelled`
     });
 

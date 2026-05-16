@@ -26,15 +26,8 @@ export async function syncSubscriptionFromCheckoutSession(sessionId: string, exp
   const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
   const planId = stripeSubscription.metadata.plan_id ?? "starter";
 
-  await prisma.profile.upsert({
-    where: { id: userId },
-    update: { role: "founder" },
-    create: {
-      id: userId,
-      email: session.customer_email ?? `${userId}@stripe.local`,
-      role: "founder"
-    }
-  });
+  // Keep member role as `user` (or existing); listing access uses subscriptions + FounderProfile, not role === founder.
+  // await prisma.profile.update({ where: { id: userId }, data: { role: "founder" } });
 
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: subscriptionId },

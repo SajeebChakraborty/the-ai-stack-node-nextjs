@@ -7,10 +7,8 @@ const googleAuthorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth";
 const googleTokenUrl = "https://oauth2.googleapis.com/token";
 const googleUserInfoUrl = "https://www.googleapis.com/oauth2/v3/userinfo";
 
-type GoogleRole = Extract<Role, "user" | "founder">;
-
 type GoogleOAuthState = {
-  role: GoogleRole;
+  role: "user";
   next: string;
   nonce: string;
   exp: number;
@@ -58,16 +56,48 @@ function sanitizeNextPath(next: string | null | undefined, fallbackPath: string)
   return next?.startsWith("/") ? next : fallbackPath;
 }
 
+/** After sign-in, send members to the dashboard — not the public directory home. */
+const GENERIC_POST_LOGIN_PATHS = new Set(["/", "/directory"]);
+
+export function resolvePostLoginPath(next: string | null | undefined) {
+  const fallback = getDefaultPathForGoogleRole();
+  const candidate = sanitizeNextPath(next, fallback);
+  return GENERIC_POST_LOGIN_PATHS.has(candidate) ? fallback : candidate;
+}
+
+/**
+ * Public site URL for OAuth redirects and post-login navigation.
+ * Prefer NEXT_PUBLIC_APP_URL; map dev `0.0.0.0` to `localhost` so browsers and Google Console match.
+ */
+export function resolveAppOrigin(origin: string) {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, "");
+  }
+
+  try {
+    const url = new URL(origin);
+    if (url.hostname === "0.0.0.0") {
+      url.hostname = "localhost";
+    }
+    return url.origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
 function getAuthOrigin(origin: string) {
-  return process.env.NEXT_PUBLIC_APP_URL ?? origin;
+  return resolveAppOrigin(origin);
 }
 
-export function getDefaultPathForGoogleRole(role: GoogleRole) {
-  return role === "founder" ? "/founder/dashboard" : "/directory";
+export function getDefaultPathForGoogleRole(_role?: Role) {
+  return "/user/dashboard";
+  // return role === "founder" ? "/founder/dashboard" : "/directory";
 }
 
-export function getGoogleLoginPath(role: GoogleRole) {
-  return role === "founder" ? "/auth/founder/login" : "/auth/login";
+export function getGoogleLoginPath(_role?: Role) {
+  return "/auth/login";
+  // return role === "founder" ? "/auth/founder/login" : "/auth/login";
 }
 
 export function decodeGoogleState(rawState: string | null) {
@@ -101,20 +131,19 @@ export function decodeGoogleState(rawState: string | null) {
 }
 
 export function buildGoogleAuthorizationUrl({
-  role,
   next,
   origin
 }: {
-  role: GoogleRole;
   next?: string;
   origin: string;
+  role?: Role;
 }) {
   const { clientId } = getGoogleConfig();
-  const fallbackPath = getDefaultPathForGoogleRole(role);
+  const fallbackPath = getDefaultPathForGoogleRole();
   const redirectUri = new URL("/auth/callback", getAuthOrigin(origin)).toString();
   const state = encodeState({
-    role,
-    next: sanitizeNextPath(next, fallbackPath),
+    role: "user",
+    next: resolvePostLoginPath(next),
     nonce: randomBytes(12).toString("hex"),
     exp: Date.now() + 10 * 60 * 1000
   });

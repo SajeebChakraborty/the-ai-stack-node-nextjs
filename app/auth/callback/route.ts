@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { ensureFounderProfileRecord } from "@/lib/auth/member-access";
 import {
   decodeGoogleState,
   exchangeCodeForGoogleProfile,
   getDefaultPathForGoogleRole,
-  getGoogleLoginPath
+  getGoogleLoginPath,
+  resolveAppOrigin,
+  resolvePostLoginPath
 } from "@/lib/auth/google";
-import { getPortalAccessError, type AuthPortal } from "@/lib/auth/portals";
+import { getPortalAccessError } from "@/lib/auth/portals";
 import { replaceUserSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 
 function buildErrorRedirect(request: Request, loginPath: string, nextPath: string, error: string) {
   const redirectUrl = new URL(loginPath, request.url);
@@ -21,9 +24,8 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = decodeGoogleState(requestUrl.searchParams.get("state"));
 
-  const requestedRole = state?.role ?? "user";
-  const nextPath = state?.next ?? getDefaultPathForGoogleRole(requestedRole);
-  const loginPath = getGoogleLoginPath(requestedRole);
+  const nextPath = resolvePostLoginPath(state?.next);
+  const loginPath = getGoogleLoginPath();
 
   if (!code || !state) {
     return buildErrorRedirect(request, loginPath, nextPath, "invalid-google-session");
@@ -62,14 +64,11 @@ export async function GET(request: Request) {
     }
 
     const existingProfile = existingByExternalId ?? existingByEmail;
-    const requestedPortal: AuthPortal = requestedRole === "founder" ? "founder" : "user";
-    const resolvedRole = existingProfile?.role ?? requestedRole;
-    const portalError = getPortalAccessError(resolvedRole, requestedPortal);
+    const resolvedRole = existingProfile?.role ?? "user";
+    const portalError = getPortalAccessError(resolvedRole, "user");
     if (portalError) {
       return buildErrorRedirect(request, loginPath, nextPath, "wrong-account-portal");
     }
-
-    const role = resolvedRole;
 
     const hydratedProfile = existingProfile
       ? await prisma.profile.update({
@@ -81,7 +80,6 @@ export async function GET(request: Request) {
             email: googleProfile.email,
             fullName: googleProfile.name ?? existingProfile.fullName ?? googleProfile.email.split("@")[0],
             avatarUrl: googleProfile.picture ?? existingProfile.avatarUrl,
-            role,
             emailVerifiedAt: new Date(),
             emailVerificationTokenHash: null,
             emailVerificationExpiresAt: null,
@@ -94,7 +92,7 @@ export async function GET(request: Request) {
             email: googleProfile.email,
             fullName: googleProfile.name ?? googleProfile.email.split("@")[0],
             avatarUrl: googleProfile.picture,
-            role,
+            role: "user",
             emailVerifiedAt: new Date(),
             emailVerificationTokenHash: null,
             emailVerificationExpiresAt: null,
@@ -102,19 +100,7 @@ export async function GET(request: Request) {
           }
         });
 
-    if (role === "founder") {
-      await prisma.founderProfile.upsert({
-        where: {
-          userId: hydratedProfile.id
-        },
-        update: {},
-        create: {
-          userId: hydratedProfile.id,
-          companyName: `${(hydratedProfile.fullName ?? "Founder").split(" ")[0]}'s company`,
-          title: "Founder"
-        }
-      });
-    }
+    await ensureFounderProfileRecord(hydratedProfile.id, hydratedProfile.fullName);
 
     await replaceUserSession({
       id: hydratedProfile.id,
@@ -124,7 +110,7 @@ export async function GET(request: Request) {
       provider: "google"
     });
 
-    return NextResponse.redirect(new URL(nextPath, request.url));
+    return NextResponse.redirect(new URL(nextPath, resolveAppOrigin(requestUrl.origin)));
   } catch {
     return buildErrorRedirect(request, loginPath, nextPath, "google-login-failed");
   }

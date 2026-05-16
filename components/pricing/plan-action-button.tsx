@@ -34,7 +34,7 @@ export function PlanActionButton({ plan }: { plan: PremiumPlan }) {
 
   async function startPlan() {
     if (plan.monthlyPrice === 0) {
-      window.location.href = "/auth/login?next=/directory";
+      window.location.href = "/auth/login?next=/user/dashboard";
       return;
     }
 

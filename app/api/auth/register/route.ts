@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Role } from "@/types/domain";
+import { ensureFounderProfileRecord } from "@/lib/auth/member-access";
 import { databaseErrorMessage, isProbablyDatabaseConnectivityError } from "@/lib/db/database-error";
 import { prisma } from "@/lib/db/prisma";
 import { sendVerificationEmail } from "@/lib/auth/email-verification";
@@ -15,21 +16,17 @@ const registrationSchema = z.object({
   role: z.enum(["user", "founder"])
 });
 
-function resolveRequestedRole(existingRole: Role | null | undefined, requestedRole: "user" | "founder"): Role {
-  if (existingRole === "admin" || existingRole === "creator" || existingRole === "moderator") {
+function resolveRequestedRole(existingRole: Role | null | undefined, _requestedRole: "user" | "founder"): Role {
+  if (existingRole === "admin" || existingRole === "creator" || existingRole === "moderator" || existingRole === "founder") {
     return existingRole;
   }
 
-  if (existingRole === "founder" || requestedRole === "founder") {
-    return "founder";
-  }
+  // Single member signup — claims/dashboard use role `user` + FounderProfile row.
+  // if (existingRole === "founder" || requestedRole === "founder") {
+  //   return "founder";
+  // }
 
   return "user";
-}
-
-function getFounderCompanyName(name: string) {
-  const firstName = name.trim().split(/\s+/)[0] ?? "Founder";
-  return `${firstName}'s company`;
 }
 
 export async function POST(request: Request) {
@@ -81,27 +78,14 @@ export async function POST(request: Request) {
           }
         });
 
-    if (resolvedRole === "founder") {
-      await prisma.founderProfile.upsert({
-        where: { userId: profile.id },
-        update: {
-          companyName: getFounderCompanyName(payload.data.name),
-          title: "Founder"
-        },
-        create: {
-          userId: profile.id,
-          companyName: getFounderCompanyName(payload.data.name),
-          title: "Founder"
-        }
-      });
-    }
+    await ensureFounderProfileRecord(profile.id, payload.data.name);
 
     await sendVerificationEmail({
       email: profile.email,
       name: profile.fullName,
       origin: new URL(request.url).origin,
       profileId: profile.id,
-      role: resolvedRole === "founder" ? "founder" : "user"
+      role: "user"
     });
 
     return NextResponse.json({

@@ -16,9 +16,9 @@ const loginSchema = z.object({
   role: z.enum(["user", "founder"])
 });
 
-function sanitizeRedirectTarget(next: string | undefined, requestedRole: "user" | "founder", resolvedRole: Parameters<typeof getDefaultHomeForRole>[0]) {
-  const requestedDefault = requestedRole === "founder" ? "/founder/dashboard" : "/directory";
-  return next?.startsWith("/") && next !== requestedDefault ? next : getDefaultHomeForRole(resolvedRole);
+function sanitizeRedirectTarget(next: string | undefined, resolvedRole: Parameters<typeof getDefaultHomeForRole>[0]) {
+  const defaultHome = getDefaultHomeForRole(resolvedRole);
+  return next?.startsWith("/") && next !== defaultHome ? next : defaultHome;
 }
 
 export async function POST(request: Request) {
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Verify your email before signing in." }, { status: 403 });
     }
 
-    const portal: AuthPortal = payload.data.role === "founder" ? "founder" : "user";
+    const portal: AuthPortal = "user";
     const portalError = getPortalAccessError(profile.role, portal);
     if (portalError) {
       return NextResponse.json({ error: portalError }, { status: 403 });
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      redirectTo: sanitizeRedirectTarget(payload.data.next, payload.data.role, profile.role)
+      redirectTo: sanitizeRedirectTarget(payload.data.next, profile.role)
     });
   } catch (error) {
     console.error("User login database error:", error);

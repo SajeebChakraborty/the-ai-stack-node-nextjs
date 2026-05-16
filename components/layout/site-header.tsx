@@ -24,6 +24,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const isOnDashboard =
     Boolean(user) &&
     (pathname === dashboardPath ||
+      pathname.startsWith("/user/") ||
       pathname.startsWith("/founder/") ||
       pathname.startsWith("/creator/") ||
       pathname.startsWith("/account/"));
@@ -60,11 +61,11 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <Button asChild size="sm" variant="outline">
-                <Link href="/auth/login">User</Link>
+                <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
               </Button>
-              <Button asChild size="sm" variant="outline">
+              {/* <Button asChild size="sm" variant="outline">
                 <Link href="/auth/founder/login">Founder</Link>
-              </Button>
+              </Button> */}
               <Button asChild size="sm">
                 <Link href="/auth/admin/login">Admin</Link>
               </Button>

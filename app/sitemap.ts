@@ -3,7 +3,7 @@ import { categories, tools } from "@/data/catalog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const staticRoutes = ["", "/directory", "/rankings", "/pricing", "/search", "/creator/dashboard", "/founder/dashboard"];
+  const staticRoutes = ["", "/directory", "/rankings", "/pricing", "/search", "/creator/dashboard", "/user/dashboard"];
 
   return [
     ...staticRoutes.map((route) => ({

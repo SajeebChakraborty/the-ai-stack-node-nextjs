@@ -10,16 +10,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { FounderEntitlementsView } from "@/types/founder";
 import type { FounderManagedTool } from "@/lib/queries/tools";
+import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
+import { getDashboardCopy } from "@/lib/dashboard/copy";
 import { CREATE_CLAIM_SECTION_ID, scrollToCreateClaimSection } from "@/lib/founder/claim-section";
 import { validateClaimForm, type ClaimFormValues } from "@/lib/validation/claim-form";
 
 export function FounderListingManager({
+  copyVariant = "user",
   tools,
   entitlements
 }: {
+  copyVariant?: DashboardCopyVariant;
   tools: FounderManagedTool[];
   entitlements: FounderEntitlementsView;
 }) {
+  const copy = getDashboardCopy(copyVariant);
   const router = useRouter();
   const [form, setForm] = useState<ClaimFormValues>({
     name: "",
@@ -72,7 +77,7 @@ export function FounderListingManager({
     if (!entitlements.verified) {
       showDialog(
         "Verification required",
-        ["Complete a founder plan payment to become verified before claiming listings."],
+        [copy.notVerifiedClaimMessage],
         "upgrade"
       );
       return;
@@ -235,10 +240,10 @@ export function FounderListingManager({
 
       <div className="grid gap-4">
         {tools.length ? (
-          tools.map((tool) => <ManagedToolCard key={tool.id} tool={tool} />)
+          tools.map((tool) => <ManagedToolCard key={tool.id} copyVariant={copyVariant} tool={tool} />)
         ) : (
           <Card>
-            <CardContent className="p-5 text-sm text-muted-foreground">No listings are claimed on this founder account yet.</CardContent>
+            <CardContent className="p-5 text-sm text-muted-foreground">{copy.emptyListings}</CardContent>
           </Card>
         )}
       </div>
@@ -246,7 +251,8 @@ export function FounderListingManager({
   );
 }
 
-function ManagedToolCard({ tool }: { tool: FounderManagedTool }) {
+function ManagedToolCard({ copyVariant = "user", tool }: { copyVariant?: DashboardCopyVariant; tool: FounderManagedTool }) {
+  const copy = getDashboardCopy(copyVariant);
   const router = useRouter();
   const [updateTitle, setUpdateTitle] = useState("");
   const [updateBody, setUpdateBody] = useState("");
@@ -260,7 +266,7 @@ function ManagedToolCard({ tool }: { tool: FounderManagedTool }) {
 
   async function submitFounderUpdate() {
     setIsSubmitting(true);
-    setStatus("Publishing founder update...");
+    setStatus(copy.publishingUpdate);
 
     try {
       const response = await fetch(`/api/founder/tools/${tool.id}/updates`, {
@@ -276,16 +282,16 @@ function ManagedToolCard({ tool }: { tool: FounderManagedTool }) {
 
       const payload = (await response.json()) as { error?: string; message?: string };
       if (!response.ok) {
-        setStatus(payload.error ?? "Founder update failed.");
+        setStatus(payload.error ?? copy.updateFailed);
         return;
       }
 
-      setStatus(payload.message ?? "Founder update published.");
+      setStatus(payload.message ?? copy.updatePublished);
       setUpdateTitle("");
       setUpdateBody("");
       router.refresh();
     } catch {
-      setStatus("Founder update failed.");
+      setStatus(copy.updateFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -380,7 +386,7 @@ function ManagedToolCard({ tool }: { tool: FounderManagedTool }) {
             <Input onChange={(event) => setUpdateTitle(event.target.value)} placeholder="Update title" value={updateTitle} />
             <Textarea onChange={(event) => setUpdateBody(event.target.value)} placeholder="Explain what changed, why it matters, and who should care." value={updateBody} />
             <Button disabled={isSubmitting} onClick={submitFounderUpdate}>
-              Publish founder update
+              {copy.publishUpdateLabel}
             </Button>
           </TabsContent>
           <TabsContent value="images" className="space-y-3">

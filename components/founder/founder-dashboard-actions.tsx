@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import type { DashboardCopyVariant } from "@/lib/dashboard/copy";
+import { getDashboardCopy } from "@/lib/dashboard/copy";
 import { scrollToCreateClaimSection } from "@/lib/founder/claim-section";
 import { Button } from "@/components/ui/button";
 
 const founderActions = ["Upload screenshots", "Respond to reviews", "Publish product update", "Manage affiliate links", "Export analytics"];
 
-export function FounderDashboardActions({ primaryOnly = false }: { primaryOnly?: boolean }) {
+export function FounderDashboardActions({
+  copyVariant = "user",
+  primaryOnly = false
+}: {
+  copyVariant?: DashboardCopyVariant;
+  primaryOnly?: boolean;
+}) {
+  const copy = getDashboardCopy(copyVariant);
   const [status, setStatus] = useState<string | null>(null);
 
   if (primaryOnly) {
@@ -26,10 +35,10 @@ export function FounderDashboardActions({ primaryOnly = false }: { primaryOnly?:
         Claim a listing
       </Button>
       <Button asChild variant="outline" className="justify-start">
-        <Link href="/founder/profile">Edit profile</Link>
+        <Link href="/account/profile">Edit profile</Link>
       </Button>
       {founderActions.map((action) => (
-        <Button key={action} variant="outline" className="justify-start" onClick={() => setStatus(`${action} is ready. Changes are saved to the founder workspace in this session.`)}>
+        <Button key={action} variant="outline" className="justify-start" onClick={() => setStatus(`${action} is ready. ${copy.workspaceSaved}`)}>
           {action}
         </Button>
       ))}

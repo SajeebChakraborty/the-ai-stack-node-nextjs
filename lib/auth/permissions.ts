@@ -1,4 +1,5 @@
 import type { Role } from "@/types/domain";
+import { canClaimAndManageListings } from "@/lib/auth/member-roles";
 
 const roleRank: Record<Role, number> = {
   user: 1,
@@ -16,6 +17,6 @@ export function canAccess(role: Role | null | undefined, minimumRole: Role) {
 export const permissions = {
   manageUsers: (role?: Role | null) => canAccess(role, "admin"),
   moderateContent: (role?: Role | null) => canAccess(role, "moderator"),
-  claimTools: (role?: Role | null) => canAccess(role, "founder"),
+  claimTools: (role?: Role | null) => Boolean(role && (canClaimAndManageListings(role) || role === "admin")),
   publishCreatorContent: (role?: Role | null) => canAccess(role, "creator")
 };

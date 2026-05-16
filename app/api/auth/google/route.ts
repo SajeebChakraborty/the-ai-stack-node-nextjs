@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
-import { buildGoogleAuthorizationUrl, getDefaultPathForGoogleRole, getGoogleLoginPath } from "@/lib/auth/google";
+import {
+  buildGoogleAuthorizationUrl,
+  getGoogleLoginPath,
+  resolvePostLoginPath
+} from "@/lib/auth/google";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const role = requestUrl.searchParams.get("role") === "founder" ? "founder" : "user";
-  const next = requestUrl.searchParams.get("next") ?? getDefaultPathForGoogleRole(role);
+  const next = resolvePostLoginPath(requestUrl.searchParams.get("next"));
 
   try {
     const authorizationUrl = buildGoogleAuthorizationUrl({
-      role,
       next,
       origin: requestUrl.origin
     });
 
     return NextResponse.redirect(authorizationUrl);
   } catch {
-    const loginUrl = new URL(getGoogleLoginPath(role), request.url);
-    loginUrl.searchParams.set("next", next.startsWith("/") ? next : getDefaultPathForGoogleRole(role));
+    const loginUrl = new URL(getGoogleLoginPath(), request.url);
+    loginUrl.searchParams.set("next", next);
     loginUrl.searchParams.set("error", "google-not-configured");
     return NextResponse.redirect(loginUrl);
   }

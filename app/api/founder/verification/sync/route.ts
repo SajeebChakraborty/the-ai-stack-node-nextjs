@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { canClaimAndManageListings } from "@/lib/auth/member-access";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getFounderEntitlements } from "@/lib/founders/entitlements";
 import { isFounderPaymentVerified, syncFounderPaymentVerification } from "@/lib/founders/verification";
@@ -15,8 +16,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  if (user.role !== "founder") {
-    return NextResponse.json({ error: "Only founder accounts can sync payment verification." }, { status: 403 });
+  if (!canClaimAndManageListings(user.role)) {
+    return NextResponse.json({ error: "Only member accounts can sync payment verification." }, { status: 403 });
   }
 
   const payload = bodySchema.safeParse(await request.json().catch(() => ({})));

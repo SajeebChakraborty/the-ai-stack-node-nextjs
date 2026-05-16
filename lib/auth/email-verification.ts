@@ -13,8 +13,9 @@ function getAuthOrigin(origin?: string) {
   return process.env.NEXT_PUBLIC_APP_URL ?? origin ?? "http://localhost:3000";
 }
 
-function getLoginPath(role: VerificationRole) {
-  return role === "founder" ? "/auth/founder/login" : "/auth/login";
+function getLoginPath(_role: VerificationRole) {
+  return "/auth/login";
+  // return role === "founder" ? "/auth/founder/login" : "/auth/login";
 }
 
 function hashVerificationToken(token: string) {
@@ -118,7 +119,7 @@ export async function verifyEmailToken(token: string) {
   });
 
   return {
-    loginPath: getLoginPath(profile.role === "founder" ? "founder" : "user"),
+    loginPath: getLoginPath("user"),
     role: profile.role
   };
 }
