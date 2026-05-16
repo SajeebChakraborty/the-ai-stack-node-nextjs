@@ -12,6 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+function statusVariant(status: string) {
+  switch (status) {
+    case "approved":
+      return "verified" as const;
+    case "rejected":
+      return "destructive" as const;
+    default:
+      return "secondary" as const;
+  }
+}
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
     year: "numeric",
@@ -190,7 +201,7 @@ export function AdminClaimRequestsPanel({
                   <p className="font-medium">
                     {request.tool.name} · {request.requester.name}
                   </p>
-                  <Badge variant={request.status === "approved" ? "verified" : "destructive"} className="capitalize">
+                  <Badge variant={statusVariant(request.status)} className="capitalize">
                     {request.status}
                   </Badge>
                 </div>
