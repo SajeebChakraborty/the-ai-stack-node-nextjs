@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { buildAppUrl } from "@/lib/auth/app-origin";
 import { verifyEmailToken } from "@/lib/auth/email-verification";
 
 function buildRedirect(request: Request, path: string, searchKey: "error" | "message", value: string) {
-  const redirectUrl = new URL(path, request.url);
+  const redirectUrl = buildAppUrl(path, request);
   redirectUrl.searchParams.set(searchKey, value);
   return NextResponse.redirect(redirectUrl);
 }

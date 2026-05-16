@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     await sendVerificationEmail({
       email: profile.email,
       name: profile.fullName,
-      origin: new URL(request.url).origin,
+      request,
       profileId: profile.id,
       role: "user"
     });

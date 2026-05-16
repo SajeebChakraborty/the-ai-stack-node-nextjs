@@ -3,15 +3,12 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import type { Role } from "@/types/domain";
 import { prisma } from "@/lib/db/prisma";
+import { resolveAppOrigin, resolveAppOriginFromRequest } from "@/lib/auth/app-origin";
 import { sendEmail } from "@/lib/email/sendgrid";
 
 const verificationLifetimeMs = 1000 * 60 * 60 * 24;
 
 type VerificationRole = Extract<Role, "user" | "founder">;
-
-function getAuthOrigin(origin?: string) {
-  return process.env.NEXT_PUBLIC_APP_URL ?? origin ?? "http://localhost:3000";
-}
 
 function getLoginPath(_role: VerificationRole) {
   return "/auth/login";
@@ -25,12 +22,14 @@ function hashVerificationToken(token: string) {
 export async function sendVerificationEmail({
   email,
   name,
+  request,
   origin,
   profileId,
   role
 }: {
   email: string;
   name?: string | null;
+  request?: Request;
   origin?: string;
   profileId: string;
   role: VerificationRole;
@@ -46,7 +45,8 @@ export async function sendVerificationEmail({
     }
   });
 
-  const verifyUrl = new URL("/auth/verify-email", getAuthOrigin(origin));
+  const authOrigin = request ? resolveAppOriginFromRequest(request) : resolveAppOrigin(origin);
+  const verifyUrl = new URL("/auth/verify-email", authOrigin);
   verifyUrl.searchParams.set("token", token);
   verifyUrl.searchParams.set("role", role);
 

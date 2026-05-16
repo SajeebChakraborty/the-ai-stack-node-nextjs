@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { ensureFounderProfileRecord } from "@/lib/auth/member-access";
+import { resolveAppOriginFromRequest } from "@/lib/auth/app-origin";
 import {
   decodeGoogleState,
   exchangeCodeForGoogleProfile,
   getDefaultPathForGoogleRole,
   getGoogleLoginPath,
-  resolveAppOrigin,
   resolvePostLoginPath
 } from "@/lib/auth/google";
 import { getPortalAccessError } from "@/lib/auth/portals";
@@ -13,7 +13,7 @@ import { replaceUserSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 
 function buildErrorRedirect(request: Request, loginPath: string, nextPath: string, error: string) {
-  const redirectUrl = new URL(loginPath, request.url);
+  const redirectUrl = new URL(loginPath, resolveAppOriginFromRequest(request));
   redirectUrl.searchParams.set("next", nextPath);
   redirectUrl.searchParams.set("error", error);
   return NextResponse.redirect(redirectUrl);
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       provider: "google"
     });
 
-    return NextResponse.redirect(new URL(nextPath, resolveAppOrigin(requestUrl.origin)));
+    return NextResponse.redirect(new URL(nextPath, resolveAppOriginFromRequest(request)));
   } catch {
     return buildErrorRedirect(request, loginPath, nextPath, "google-login-failed");
   }

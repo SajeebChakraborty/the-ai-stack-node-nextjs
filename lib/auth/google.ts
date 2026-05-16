@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { resolveAppOrigin } from "@/lib/auth/app-origin";
 import type { Role } from "@/types/domain";
 
 const googleAuthorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -65,26 +66,7 @@ export function resolvePostLoginPath(next: string | null | undefined) {
   return GENERIC_POST_LOGIN_PATHS.has(candidate) ? fallback : candidate;
 }
 
-/**
- * Public site URL for OAuth redirects and post-login navigation.
- * Prefer NEXT_PUBLIC_APP_URL; map dev `0.0.0.0` to `localhost` so browsers and Google Console match.
- */
-export function resolveAppOrigin(origin: string) {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.replace(/\/$/, "");
-  }
-
-  try {
-    const url = new URL(origin);
-    if (url.hostname === "0.0.0.0") {
-      url.hostname = "localhost";
-    }
-    return url.origin;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
+export { resolveAppOrigin };
 
 function getAuthOrigin(origin: string) {
   return resolveAppOrigin(origin);
