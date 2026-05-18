@@ -1,76 +1,141 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Filter, Search } from "lucide-react";
-import type { Tool } from "@/types/domain";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Filter, Loader2, Search } from "lucide-react";
+import type { DirectoryFilters } from "@/types/directory";
 import { ToolCard } from "@/components/directory/tool-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import type { Tool } from "@/types/domain";
 
-type DirectoryFilters = {
-  categories: Array<{ slug: string; name: string }>;
-  pricingModels: string[];
+const PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 220;
+
+type DirectoryListPayload = {
+  tools?: Tool[];
+  filters?: DirectoryFilters;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  hasMore?: boolean;
+  pendingClaimToolIds?: string[];
 };
 
 export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: { initialCategory?: string; initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory);
   const [pricing, setPricing] = useState("all");
   const [sort, setSort] = useState<"trending" | "top-rated" | "fastest-growing" | "newest">("trending");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(9);
+  const [page, setPage] = useState(1);
   const [tools, setTools] = useState<Tool[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [pendingClaimToolIds, setPendingClaimToolIds] = useState<Set<string>>(() => new Set());
   const [filters, setFilters] = useState<DirectoryFilters>({ categories: [], pricingModels: [] });
   const [loading, setLoading] = useState(true);
-
-  const loadDirectory = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      const params = new URLSearchParams({
-        category,
-        pricing,
-        sort,
-        verified: String(verifiedOnly)
-      });
-
-      if (query.trim()) {
-        params.set("q", query.trim());
-      }
-
-      const response = await fetch(`/api/directory?${params.toString()}`);
-      const payload = (await response.json()) as {
-        tools?: Tool[];
-        filters?: DirectoryFilters;
-        total?: number;
-      };
-
-      setTools(payload.tools ?? []);
-      if (payload.filters) {
-        setFilters(payload.filters);
-      }
-    } catch {
-      setTools([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [category, pricing, query, sort, verifiedOnly]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const fetchControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void loadDirectory();
-    }, 300);
+      setDebouncedQuery(query.trim());
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [loadDirectory]);
+  }, [query]);
 
   useEffect(() => {
-    setVisibleCount(9);
-  }, [category, pricing, query, sort, verifiedOnly]);
+    void fetch("/api/directory?filtersOnly=true")
+      .then((response) => response.json())
+      .then((payload: { filters?: DirectoryFilters }) => {
+        if (payload.filters) {
+          setFilters(payload.filters);
+        }
+      })
+      .catch(() => {
+        // filters optional on first paint
+      });
+  }, []);
+
+  const loadDirectory = useCallback(
+    async (targetPage: number, mode: "replace" | "append") => {
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
+
+      if (mode === "replace") {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        const params = new URLSearchParams({
+          category,
+          pricing,
+          sort,
+          verified: String(verifiedOnly),
+          page: String(targetPage),
+          pageSize: String(PAGE_SIZE)
+        });
+
+        if (debouncedQuery) {
+          params.set("q", debouncedQuery);
+        }
+
+        const response = await fetch(`/api/directory?${params.toString()}`, { signal: controller.signal });
+
+        if (!response.ok) {
+          throw new Error("directory-fetch-failed");
+        }
+
+        const payload = (await response.json()) as DirectoryListPayload;
+        const nextTools = payload.tools ?? [];
+
+        setTools((current) => (mode === "append" ? [...current, ...nextTools] : nextTools));
+        setTotal(payload.total ?? nextTools.length);
+        setHasMore(Boolean(payload.hasMore));
+        setPage(payload.page ?? targetPage);
+        setPendingClaimToolIds(new Set(payload.pendingClaimToolIds ?? []));
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (mode === "replace") {
+          setTools([]);
+          setTotal(0);
+          setHasMore(false);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [category, debouncedQuery, pricing, sort, verifiedOnly]
+  );
+
+  useEffect(() => {
+    setPage(1);
+    void loadDirectory(1, "replace");
+  }, [loadDirectory]);
 
   const categoryOptions = useMemo(() => filters.categories, [filters.categories]);
+  const pendingClaimSet = pendingClaimToolIds;
+
+  function loadMore() {
+    if (loadingMore || !hasMore) {
+      return;
+    }
+
+    void loadDirectory(page + 1, "append");
+  }
 
   return (
     <div className="grid gap-6">
@@ -129,25 +194,44 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
         </div>
         <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <Filter className="h-4 w-4" />
-          {loading ? "Loading directory listings..." : `${tools.length} published listing${tools.length === 1 ? "" : "s"} match your filters.`}
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading directory listings...
+            </>
+          ) : (
+            `${total} published listing${total === 1 ? "" : "s"} match your filters.`
+          )}
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {tools.slice(0, visibleCount).map((tool) => (
-          <ToolCard key={tool.id} tool={tool} />
+        {tools.map((tool) => (
+          <ToolCard
+            key={tool.id}
+            tool={tool}
+            pendingClaimRequest={pendingClaimSet.has(tool.id)}
+          />
         ))}
       </div>
 
       {!loading && tools.length === 0 ? (
         <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-          No published listings match these filters. Verified founder claims appear here automatically after payment verification or admin approval.
+          No published listings match these filters. Verified founder claims appear here automatically after payment
+          verification or admin approval.
         </div>
       ) : null}
 
-      {visibleCount < tools.length ? (
-        <Button variant="outline" className="mx-auto" onClick={() => setVisibleCount((value) => value + 9)}>
-          Load more tools
+      {hasMore ? (
+        <Button variant="outline" className="mx-auto" disabled={loadingMore} onClick={loadMore}>
+          {loadingMore ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading...
+            </>
+          ) : (
+            "Load more tools"
+          )}
         </Button>
       ) : null}
     </div>

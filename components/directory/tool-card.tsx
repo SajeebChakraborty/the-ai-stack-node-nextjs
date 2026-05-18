@@ -19,15 +19,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ToolCardPromoVideo } from "@/components/directory/tool-card-promo-video";
 import { ToolLogo } from "@/components/ui/tool-logo";
 
-export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; analyticsSource?: "directory" | "home" | "search" }) {
+export function ToolCard({
+  tool,
+  analyticsSource = "directory",
+  pendingClaimRequest: pendingClaimRequestProp
+}: {
+  tool: Tool;
+  analyticsSource?: "directory" | "home" | "search";
+  pendingClaimRequest?: boolean;
+}) {
   const { bookmarkedToolIds, toggleBookmark } = useAppStore();
   const isBookmarked = bookmarkedToolIds.includes(tool.id);
   const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
-  const [pendingClaimRequest, setPendingClaimRequest] = useState(false);
+  const [pendingClaimRequest, setPendingClaimRequest] = useState(pendingClaimRequestProp ?? false);
   const isUnclaimed = !tool.founderId;
 
   useEffect(() => {
+    if (pendingClaimRequestProp !== undefined) {
+      setPendingClaimRequest(pendingClaimRequestProp);
+      return;
+    }
+
     if (!isUnclaimed) {
       return;
     }
@@ -59,7 +72,7 @@ export function ToolCard({ tool, analyticsSource = "directory" }: { tool: Tool; 
     return () => {
       cancelled = true;
     };
-  }, [isUnclaimed, tool.id]);
+  }, [isUnclaimed, pendingClaimRequestProp, tool.id]);
 
   async function handleBookmark() {
     const message = await toggleBookmark(tool.id);
