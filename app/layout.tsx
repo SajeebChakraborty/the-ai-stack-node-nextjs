@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { AppShellClient } from "@/components/layout/app-shell-client";
 import { AdminPanelHeader } from "@/components/layout/admin-panel-header";
 import { AuthAwareHeader } from "@/components/layout/auth-aware-header";
+import { SiteFooterAsync } from "@/components/layout/site-footer-async";
 import { AppProviders } from "@/components/providers/query-provider";
+import { fontDisplay, fontSans } from "@/lib/fonts";
 import { siteSettings } from "@/data/catalog";
 import "./globals.css";
 
@@ -41,10 +43,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" suppressHydrationWarning className={`${fontSans.variable} ${fontDisplay.variable}`}>
+      <body className="font-sans">
         <AppProviders>
-          <AppShellClient header={<AuthAwareHeader />} adminHeader={<AdminPanelHeader />}>
+          <AppShellClient
+            header={<AuthAwareHeader />}
+            footer={<SiteFooterAsync />}
+            adminHeader={<AdminPanelHeader />}
+          >
             {children}
           </AppShellClient>
         </AppProviders>

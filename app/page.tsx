@@ -1,11 +1,7 @@
-import { Hero } from "@/components/home/hero";
-import { HomeSections } from "@/components/home/home-sections";
+import { HomePageView } from "@/components/home/home-page-view";
+import { getHomePageData } from "@/lib/queries/home";
 
-export default function HomePage() {
-  return (
-    <div className="overflow-x-hidden">
-      <Hero />
-      <HomeSections />
-    </div>
-  );
+export default async function HomePage() {
+  const data = await getHomePageData();
+  return <HomePageView data={data} />;
 }

@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight, Medal, TrendingUp } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
+import { SectionShell } from "@/components/layout/section";
 import { getRankingsBoard } from "@/lib/queries/rankings";
+import { buildPageMetadata } from "@/lib/seo/build-metadata";
 import { calculateRankingScore } from "@/lib/utils/ranking";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Tool } from "@/types/domain";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "AI Rankings",
-  description: "Trending, top-rated, fastest-growing, and editor-picked AI tool rankings."
-};
+  description: "Trending, top-rated, fastest-growing, and editor-picked AI tool rankings.",
+  path: "/rankings"
+});
 
 function RankingList({ emptyMessage, tools }: { emptyMessage: string; tools: Tool[] }) {
   if (!tools.length) {

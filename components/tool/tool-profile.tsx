@@ -3,7 +3,15 @@ import { CheckCircle2, MessageSquare, PlayCircle, ShieldCheck, Star, ThumbsUp } 
 import type { Review, Tool } from "@/types/domain";
 import type { ToolDiscussion, ToolUpdateItem } from "@/lib/queries/tools";
 import { buildToolReviewSummary } from "@/lib/tools/review-summary";
-import { toolJsonLd } from "@/lib/seo/schema";
+import { breadcrumbJsonLd, toolJsonLd } from "@/lib/seo/schema";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +52,36 @@ export function ToolProfile({
     <>
       <ToolProfileViewTracker toolId={tool.id} />
       <script type="application/ld+json" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: JSON.stringify(toolJsonLd(tool)) }} />
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            breadcrumbJsonLd([
+              { name: "Home", path: "/" },
+              { name: "Directory", path: "/directory" },
+              { name: tool.name, path: `/tools/${tool.slug}` }
+            ])
+          )
+        }}
+      />
+      <div className="container py-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/directory">Directory</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{tool.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
       <section className="border-b bg-secondary/30">
         <div className="container grid gap-8 py-10 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">

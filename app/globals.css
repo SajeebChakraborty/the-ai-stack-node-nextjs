@@ -24,6 +24,12 @@
     --input: 0 0% 88%;
     --ring: 350 84% 58%;
     --radius: 0.5rem;
+    --surface: 0 0% 98%;
+    --surface-elevated: 0 0% 100%;
+    --marketing: 350 84% 58%;
+    --marketing-foreground: 0 0% 100%;
+    --academy: 270 40% 96%;
+    --academy-foreground: 270 30% 25%;
   }
 
   .dark {
@@ -46,6 +52,12 @@
     --border: 0 0% 16%;
     --input: 0 0% 16%;
     --ring: 350 88% 62%;
+    --surface: 0 0% 5%;
+    --surface-elevated: 0 0% 8%;
+    --marketing: 350 88% 62%;
+    --marketing-foreground: 0 0% 100%;
+    --academy: 270 20% 12%;
+    --academy-foreground: 270 15% 85%;
   }
 
   * {
@@ -77,6 +89,14 @@
 
   .minimal-surface {
     @apply border border-border bg-card shadow-sm;
+  }
+
+  .surface-elevated {
+    @apply border border-border bg-surface-elevated shadow-sm;
+  }
+
+  .academy-surface {
+    @apply border border-border/80 bg-academy/30 dark:bg-academy/20;
   }
 
   .home-3d-scene {

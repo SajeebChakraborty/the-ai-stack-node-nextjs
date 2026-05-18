@@ -30,6 +30,12 @@ const navItems: Array<{
   icon: typeof LayoutDashboard;
 }> = [
   {
+    id: "my-courses",
+    label: "My courses",
+    description: "Enrollments, progress & certificates",
+    icon: BookOpen
+  },
+  {
     id: "dashboard",
     label: "Dashboard",
     description: "Traffic, clicks, and performance",
@@ -46,12 +52,6 @@ const navItems: Array<{
     label: "Claim list",
     description: "Manage claimed listings",
     icon: ListChecks
-  },
-  {
-    id: "my-courses",
-    label: "My courses",
-    description: "Enrollments, progress & certificates",
-    icon: BookOpen
   },
   {
     id: "membership",
@@ -95,7 +95,7 @@ export function UserDashboardLayout({
   courseEnrollments
 }: UserDashboardLayoutProps) {
   const copy = getDashboardCopy(copyVariant);
-  const [activeView, setActiveView] = useState<UserDashboardView>("dashboard");
+  const [activeView, setActiveView] = useState<UserDashboardView>("my-courses");
 
   useEffect(() => {
     if (window.location.hash === `#${CREATE_CLAIM_SECTION_ID}`) {

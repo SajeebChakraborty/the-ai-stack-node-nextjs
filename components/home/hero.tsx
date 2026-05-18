@@ -9,10 +9,10 @@ import { GradientText } from "@/components/home/gradient-text";
 import { HeroSearch } from "@/components/home/hero-search";
 import { Button } from "@/components/ui/button";
 
-const stats = [
-  { value: "18K+", label: "verified reviews" },
-  { value: "4.8M", label: "monthly buyer signals" },
-  { value: "$2.1M", label: "creator payouts tracked" }
+const defaultStats = [
+  { value: "500+", label: "AI tools indexed" },
+  { value: "30+", label: "video courses" },
+  { value: "4.8★", label: "avg. course rating" }
 ] as const;
 
 const heroStagger = {
@@ -27,7 +27,7 @@ const heroItem = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } }
 };
 
-export function Hero() {
+export function Hero({ stats = defaultStats }: { stats?: ReadonlyArray<{ value: string; label: string }> }) {
   return (
     <section className="relative overflow-hidden border-b">
       <HeroBackground />
@@ -70,7 +70,7 @@ export function Hero() {
           </motion.div>
 
           <motion.div className="grid max-w-2xl grid-cols-1 gap-3 text-sm sm:grid-cols-3" variants={heroItem}>
-            {stats.map((stat, index) => (
+            {(stats ?? defaultStats).map((stat, index) => (
               <motion.div
                 key={stat.label}
                 className="glass-panel rounded-xl p-4"

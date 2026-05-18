@@ -10,6 +10,7 @@ import { navItems } from "@/lib/constants/navigation";
 import { PanelAccountMenu } from "@/components/layout/panel-account-menu";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/layout/logo";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 type HeaderUser = {
   name: string;
@@ -31,8 +32,11 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between gap-4">
-        <Logo />
+      <div className="container flex h-16 items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <MobileNav user={user ? { name: user.name, role: user.role } : null} />
+          <Logo />
+        </div>
         <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => (
             <Button key={item.href} asChild variant="ghost" size="sm">
@@ -59,7 +63,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
           {user ? (
             <PanelAccountMenu user={user} />
           ) : (
-            <div className="hidden items-center gap-2 md:flex">
+            <div className="flex items-center gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
               </Button>

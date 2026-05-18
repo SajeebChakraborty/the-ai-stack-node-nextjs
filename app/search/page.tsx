@@ -1,25 +1,55 @@
 import type { Metadata } from "next";
 import { DirectoryClient } from "@/components/directory/directory-client";
-
-export const metadata: Metadata = {
-  title: "Advanced AI Search",
-  description: "Search TheAiStack by product, category, pricing, review type, creator proof, founder activity, and trust score."
-};
+import { PageHeader } from "@/components/layout/page-header";
+import { SectionShell } from "@/components/layout/section";
+import { buildPageMetadata } from "@/lib/seo/build-metadata";
+import { getDirectoryFilterOptions, getDirectoryToolsPage } from "@/lib/queries/directory";
 
 type Props = {
   searchParams: Promise<{ q?: string }>;
 };
 
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { q } = await searchParams;
+  const query = q?.trim();
+  const title = query ? `Search: ${query}` : "Advanced AI Search";
+  const description = query
+    ? `Search results for “${query}” on TheAiStack — tools ranked by reviews, trust, and pricing.`
+    : "Search TheAiStack by product, category, pricing, review type, and trust score.";
+
+  return buildPageMetadata({
+    title,
+    description,
+    path: query ? `/search?q=${encodeURIComponent(query)}` : "/search"
+  });
+}
+
 export default async function SearchPage({ searchParams }: Props) {
   const { q } = await searchParams;
+  const query = q?.trim() ?? "";
+
+  const [initialPage, filters] = await Promise.all([
+    getDirectoryToolsPage({ query, page: 1, pageSize: 12, sort: "trending" }),
+    getDirectoryFilterOptions()
+  ]);
 
   return (
-    <div className="section-shell">
-      <div className="mb-8 max-w-3xl">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">Advanced search</p>
-        <h1 className="mt-2 text-4xl font-semibold tracking-normal md:text-5xl">Search the AI market by proof, not hype.</h1>
-      </div>
-      <DirectoryClient initialQuery={q ?? ""} />
-    </div>
+    <SectionShell className="py-12 md:py-16">
+      <PageHeader
+        variant="marketing"
+        eyebrow="Advanced search"
+        title="Search the AI market by proof, not hype"
+        className="mb-8"
+      />
+      <DirectoryClient
+        initialQuery={query}
+        initialData={{
+          tools: initialPage.tools,
+          total: initialPage.total,
+          hasMore: initialPage.hasMore,
+          filters
+        }}
+      />
+    </SectionShell>
   );
 }

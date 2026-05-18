@@ -12,8 +12,7 @@ import {
   Star
 } from "lucide-react";
 import type { CourseDetail } from "@/types/course";
-import { showSuccessAlert, showUpgradeAlert } from "@/lib/ui/sweet-alert";
-import "sweetalert2/dist/sweetalert2.min.css";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,9 +33,8 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
   function handleLessonClick(lesson: CourseLessonView) {
     if (lesson.locked) {
       if (!course.enrolled) {
-        void showUpgradeAlert({
-          title: "Enroll to watch",
-          text: "Enroll in this course to unlock all lessons."
+        toast.error("Enroll to watch", {
+          description: "Enroll in this course to unlock all lessons."
         });
       }
       return;
@@ -66,9 +64,14 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
 
       if (response.status === 403 && payload.code === "COURSE_LIMIT_REACHED") {
         const limitLabel = payload.entitlements?.courseLimit ?? 0;
-        void showUpgradeAlert({
-          title: "Course limit reached",
-          text: `Your ${payload.entitlements?.planName ?? "plan"} allows ${limitLabel} course${limitLabel === 1 ? "" : "s"}. Upgrade to enroll in more.`
+        toast.error("Course limit reached", {
+          description: `Your ${payload.entitlements?.planName ?? "plan"} allows ${limitLabel} course${limitLabel === 1 ? "" : "s"}.`,
+          action: {
+            label: "View pricing",
+            onClick: () => {
+              window.location.href = "/pricing";
+            }
+          }
         });
         return;
       }
@@ -80,11 +83,12 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
       if (payload.course) {
         setCourse(payload.course);
       }
-      void showSuccessAlert({ title: "Enrolled", text: "You can now access all lessons in this course." });
+      toast.success("Enrolled", {
+        description: "You can now access all lessons in this course."
+      });
     } catch (error) {
-      void showUpgradeAlert({
-        title: "Could not enroll",
-        text: error instanceof Error ? error.message : "Try again in a moment."
+      toast.error("Could not enroll", {
+        description: error instanceof Error ? error.message : "Try again in a moment."
       });
     } finally {
       setEnrolling(false);

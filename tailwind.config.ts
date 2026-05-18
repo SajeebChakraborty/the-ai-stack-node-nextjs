@@ -18,6 +18,10 @@ const config: Config = {
       }
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"]
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +51,22 @@ const config: Config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))"
+        },
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          elevated: "hsl(var(--surface-elevated))"
+        },
+        marketing: {
+          DEFAULT: "hsl(var(--marketing))",
+          foreground: "hsl(var(--marketing-foreground))"
+        },
+        academy: {
+          DEFAULT: "hsl(var(--academy))",
+          foreground: "hsl(var(--academy-foreground))"
         }
       },
       borderRadius: {

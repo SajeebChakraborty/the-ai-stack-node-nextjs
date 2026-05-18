@@ -13,20 +13,35 @@ import { RemoteImage } from "@/components/ui/remote-image";
 
 type CategoryOption = { slug: string; name: string };
 
-export function CoursesCatalogClient({ initialQuery = "" }: { initialQuery?: string }) {
+type CoursesInitialData = {
+  courses: CourseListItem[];
+  total: number;
+  hasMore: boolean;
+};
+
+export function CoursesCatalogClient({
+  initialQuery = "",
+  initialCategories = [],
+  initialData
+}: {
+  initialQuery?: string;
+  initialCategories?: CategoryOption[];
+  initialData?: CoursesInitialData;
+}) {
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [category, setCategory] = useState("all");
   const [level, setLevel] = useState("all");
-  const [courses, setCourses] = useState<CourseListItem[]>([]);
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [courses, setCourses] = useState<CourseListItem[]>(initialData?.courses ?? []);
+  const [categories, setCategories] = useState<CategoryOption[]>(initialCategories);
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(() => new Set());
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? false);
+  const [total, setTotal] = useState(initialData?.total ?? 0);
+  const [loading, setLoading] = useState(!initialData);
   const [loadingMore, setLoadingMore] = useState(false);
   const fetchRef = useRef<AbortController | null>(null);
+  const skipInitialFetchRef = useRef(Boolean(initialData));
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 220);
@@ -34,11 +49,14 @@ export function CoursesCatalogClient({ initialQuery = "" }: { initialQuery?: str
   }, [query]);
 
   useEffect(() => {
+    if (initialCategories.length > 0) {
+      return;
+    }
     void fetch("/api/courses?filtersOnly=true")
       .then((response) => response.json())
       .then((payload: { categories?: CategoryOption[] }) => setCategories(payload.categories ?? []))
       .catch(() => undefined);
-  }, []);
+  }, [initialCategories.length]);
 
   const loadCourses = useCallback(
     async (targetPage: number, mode: "replace" | "append") => {
@@ -96,6 +114,10 @@ export function CoursesCatalogClient({ initialQuery = "" }: { initialQuery?: str
   );
 
   useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
     void loadCourses(1, "replace");
   }, [loadCourses]);
 

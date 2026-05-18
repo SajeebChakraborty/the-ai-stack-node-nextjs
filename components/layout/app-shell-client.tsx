@@ -2,15 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { BookmarkHydrator } from "@/components/bookmarks/bookmark-hydrator";
-import { SiteFooter } from "@/components/layout/site-footer";
 
 export function AppShellClient({
   children,
   header,
+  footer,
   adminHeader
 }: {
   children: React.ReactNode;
   header?: React.ReactNode;
+  footer?: React.ReactNode;
   adminHeader?: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -30,7 +31,7 @@ export function AppShellClient({
       <BookmarkHydrator />
       {header}
       <main className="flex-1">{children}</main>
-      <SiteFooter />
+      {footer}
     </div>
   );
 }

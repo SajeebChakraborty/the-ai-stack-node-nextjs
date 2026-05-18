@@ -23,7 +23,22 @@ type DirectoryListPayload = {
   pendingClaimToolIds?: string[];
 };
 
-export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: { initialCategory?: string; initialQuery?: string }) {
+type DirectoryInitialData = {
+  tools: Tool[];
+  total: number;
+  hasMore: boolean;
+  filters: DirectoryFilters;
+};
+
+export function DirectoryClient({
+  initialCategory = "all",
+  initialQuery = "",
+  initialData
+}: {
+  initialCategory?: string;
+  initialQuery?: string;
+  initialData?: DirectoryInitialData;
+}) {
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory);
@@ -31,14 +46,17 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
   const [sort, setSort] = useState<"trending" | "top-rated" | "fastest-growing" | "newest">("trending");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [tools, setTools] = useState<Tool[]>([]);
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [tools, setTools] = useState<Tool[]>(initialData?.tools ?? []);
+  const [total, setTotal] = useState(initialData?.total ?? 0);
+  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? false);
   const [pendingClaimToolIds, setPendingClaimToolIds] = useState<Set<string>>(() => new Set());
-  const [filters, setFilters] = useState<DirectoryFilters>({ categories: [], pricingModels: [] });
-  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<DirectoryFilters>(
+    initialData?.filters ?? { categories: [], pricingModels: [] }
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [loadingMore, setLoadingMore] = useState(false);
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const skipInitialFetchRef = useRef(Boolean(initialData));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -49,6 +67,9 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
   }, [query]);
 
   useEffect(() => {
+    if (initialData?.filters) {
+      return;
+    }
     void fetch("/api/directory?filtersOnly=true")
       .then((response) => response.json())
       .then((payload: { filters?: DirectoryFilters }) => {
@@ -56,10 +77,8 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
           setFilters(payload.filters);
         }
       })
-      .catch(() => {
-        // filters optional on first paint
-      });
-  }, []);
+      .catch(() => undefined);
+  }, [initialData?.filters]);
 
   const loadDirectory = useCallback(
     async (targetPage: number, mode: "replace" | "append") => {
@@ -122,6 +141,10 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
   );
 
   useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false;
+      return;
+    }
     setPage(1);
     void loadDirectory(1, "replace");
   }, [loadDirectory]);
@@ -139,7 +162,7 @@ export function DirectoryClient({ initialCategory = "all", initialQuery = "" }: 
 
   return (
     <div className="grid gap-6">
-      <div className="rounded-xl border border-border bg-card p-4 shadow-md dark:bg-[hsl(0,0%,8%)]">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-md">
         <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
