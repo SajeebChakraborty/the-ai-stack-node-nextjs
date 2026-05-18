@@ -45,14 +45,14 @@ export default async function CourseDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="section-shell space-y-6">
+    <div className="section-shell space-y-4 overflow-x-hidden sm:space-y-6">
       <script
         type="application/ld+json"
         suppressHydrationWarning
         dangerouslySetInnerHTML={{ __html: JSON.stringify(courseJsonLd(detail.course)) }}
       />
-      <Breadcrumb>
-        <BreadcrumbList>
+      <Breadcrumb className="overflow-x-auto">
+        <BreadcrumbList className="flex-nowrap text-xs sm:text-sm">
           <BreadcrumbItem>
             <BreadcrumbLink href="/">Home</BreadcrumbLink>
           </BreadcrumbItem>
@@ -61,8 +61,8 @@ export default async function CourseDetailPage({ params }: Props) {
             <BreadcrumbLink href="/courses">Courses</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{detail.course.title}</BreadcrumbPage>
+          <BreadcrumbItem className="min-w-0 max-w-[min(100%,12rem)] sm:max-w-xs">
+            <BreadcrumbPage className="truncate">{detail.course.title}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>

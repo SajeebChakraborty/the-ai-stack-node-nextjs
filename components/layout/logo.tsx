@@ -7,7 +7,7 @@ export function Logo() {
       <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-glow">
         <Layers3 className="h-5 w-5" />
       </span>
-      <span className="text-base">TheAiStack</span>
+      <span className="hidden text-base sm:inline">TheAiStack</span>
     </Link>
   );
 }

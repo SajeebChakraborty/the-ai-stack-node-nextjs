@@ -6,11 +6,11 @@ import { Moon, Search, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import type { Role } from "@/types/domain";
 import { getHomeForRole } from "@/lib/auth/portals";
-import { navItems } from "@/lib/constants/navigation";
-import { PanelAccountMenu } from "@/components/layout/panel-account-menu";
-import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/layout/logo";
+import { AccountMenu } from "@/components/layout/account-menu";
+import { DesktopNav } from "@/components/layout/desktop-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { Logo } from "@/components/layout/logo";
+import { Button } from "@/components/ui/button";
 
 type HeaderUser = {
   name: string;
@@ -30,44 +30,48 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
       pathname.startsWith("/creator/") ||
       pathname.startsWith("/account/"));
 
+  const showDashboardLink = Boolean(user && dashboardPath && !isOnDashboard);
+
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <MobileNav user={user ? { name: user.name, role: user.role } : null} />
+      <div className="container flex h-14 min-h-14 items-center justify-between gap-2 sm:h-16 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2 lg:flex-none">
+          <MobileNav user={user} showDashboard={showDashboardLink} dashboardHref={dashboardPath} />
           <Logo />
         </div>
-        <nav className="hidden items-center gap-1 lg:flex">
-          {navItems.map((item) => (
-            <Button key={item.href} asChild variant="ghost" size="sm">
-              <Link href={item.href}>{item.label}</Link>
-            </Button>
-          ))}
-          {user && dashboardPath && !isOnDashboard ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link href={dashboardPath}>Dashboard</Link>
-            </Button>
-          ) : null}
-        </nav>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+
+        <DesktopNav dashboardHref={dashboardPath} showDashboard={showDashboardLink} />
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <Button asChild variant="ghost" size="icon" className="h-9 w-9 sm:hidden" aria-label="Search">
             <Link href="/search">
-              <Search className="mr-2 h-4 w-4" />
-              Search
+              <Search className="h-4 w-4" />
             </Link>
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+          <Button asChild variant="outline" size="sm" className="hidden h-9 sm:inline-flex">
+            <Link href="/search">
+              <Search className="mr-2 h-4 w-4" />
+              <span className="hidden md:inline">Search</span>
+            </Link>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative h-9 w-9 shrink-0"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
+
           {user ? (
-            <PanelAccountMenu user={user} />
+            <AccountMenu user={user} />
           ) : (
-            <div className="flex items-center gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
-              </Button>
-            </div>
+            <Button asChild size="sm" variant="default" className="hidden h-9 sm:inline-flex">
+              <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
+            </Button>
           )}
         </div>
       </div>
