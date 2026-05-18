@@ -2,7 +2,14 @@
 
 import { createContext, useContext } from "react";
 
-export type UserDashboardView = "dashboard" | "create" | "list" | "membership" | "bookmarks" | "claim-requests";
+export type UserDashboardView =
+  | "dashboard"
+  | "create"
+  | "list"
+  | "membership"
+  | "bookmarks"
+  | "claim-requests"
+  | "my-courses";
 
 type UserDashboardNavContextValue = {
   setView: (view: UserDashboardView) => void;

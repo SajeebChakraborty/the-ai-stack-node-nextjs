@@ -1,7 +1,8 @@
-import { BarChart3, Compass, Crown } from "lucide-react";
+import { BarChart3, BookOpen, Compass, Crown } from "lucide-react";
 
 export const navItems = [
   { href: "/directory", label: "Directory", icon: Compass },
+  { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/rankings", label: "Rankings", icon: BarChart3 },
   { href: "/pricing", label: "Pricing", icon: Crown }
 ];
@@ -11,6 +12,7 @@ export const footerGroups = [
     title: "Platform",
     links: [
       { href: "/directory", label: "AI directory" },
+      { href: "/courses", label: "Courses" },
       { href: "/rankings", label: "Rankings" },
       { href: "/search", label: "Advanced search" },
       { href: "/pricing", label: "Pricing" }

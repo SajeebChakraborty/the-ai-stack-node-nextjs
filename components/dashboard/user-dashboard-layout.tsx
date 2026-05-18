@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { Bookmark, Crown, FileText, LayoutDashboard, ListChecks, PlusCircle } from "lucide-react";
+import { Bookmark, BookOpen, Crown, FileText, LayoutDashboard, ListChecks, PlusCircle } from "lucide-react";
+import { MyCoursesPanel } from "@/components/dashboard/my-courses-panel";
+import type { CourseEnrollmentSummary } from "@/types/course";
 import { BookmarksPanel } from "@/components/dashboard/bookmarks-panel";
 import { ClaimRequestsPanel } from "@/components/dashboard/claim-requests-panel";
 import { MembershipPanel } from "@/components/dashboard/membership-panel";
@@ -46,6 +48,12 @@ const navItems: Array<{
     icon: ListChecks
   },
   {
+    id: "my-courses",
+    label: "My courses",
+    description: "Enrollments, progress & certificates",
+    icon: BookOpen
+  },
+  {
     id: "membership",
     label: "Membership",
     description: "Current plan & upgrades",
@@ -73,6 +81,7 @@ type UserDashboardLayoutProps = {
   initialVerified: boolean;
   membership: MembershipSummary;
   claimRequests: ListingClaimRequestView[];
+  courseEnrollments: CourseEnrollmentSummary[];
 };
 
 export function UserDashboardLayout({
@@ -82,7 +91,8 @@ export function UserDashboardLayout({
   entitlements,
   initialVerified,
   membership,
-  claimRequests
+  claimRequests,
+  courseEnrollments
 }: UserDashboardLayoutProps) {
   const copy = getDashboardCopy(copyVariant);
   const [activeView, setActiveView] = useState<UserDashboardView>("dashboard");
@@ -163,6 +173,8 @@ export function UserDashboardLayout({
                   <FounderMetricCards metrics={metrics} />
                   <FounderMetricsChart periodDays={metrics.periodDays} series={metrics.chartSeries} />
                 </div>
+              ) : activeView === "my-courses" ? (
+                <MyCoursesPanel enrollments={courseEnrollments} />
               ) : activeView === "membership" ? (
                 <MembershipPanel initialMembership={membership} />
               ) : activeView === "bookmarks" ? (

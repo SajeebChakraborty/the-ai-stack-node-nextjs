@@ -7,6 +7,7 @@ import { getUserMembershipSummary } from "@/lib/queries/membership";
 import { getFounderEntitlements } from "@/lib/founders/entitlements";
 import { getFounderDashboardMetrics } from "@/lib/queries/founder-analytics";
 import { getFounderManagedTools } from "@/lib/queries/tools";
+import { getUserCourseEnrollments } from "@/lib/queries/courses";
 import type { Role } from "@/types/domain";
 
 type MemberDashboardProps = {
@@ -25,12 +26,13 @@ export function memberDashboardMetadata(copyVariant: DashboardCopyVariant): Meta
 }
 
 export async function MemberDashboard({ userId, role, copyVariant }: MemberDashboardProps) {
-  const [managedTools, entitlements, metrics, membership, claimRequests] = await Promise.all([
+  const [managedTools, entitlements, metrics, membership, claimRequests, courseEnrollments] = await Promise.all([
     getFounderManagedTools(userId),
     getFounderEntitlements(userId, role),
     getFounderDashboardMetrics(userId),
     getUserMembershipSummary(userId),
-    getUserListingClaimRequests(userId)
+    getUserListingClaimRequests(userId),
+    getUserCourseEnrollments(userId)
   ]);
 
   return (
@@ -39,6 +41,7 @@ export async function MemberDashboard({ userId, role, copyVariant }: MemberDashb
       entitlements={entitlements}
       initialVerified={entitlements.verified}
       claimRequests={claimRequests}
+      courseEnrollments={courseEnrollments}
       membership={membership}
       metrics={metrics}
       tools={managedTools}

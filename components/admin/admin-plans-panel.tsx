@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit3, RefreshCw, Trash2 } from "lucide-react";
 import type { PremiumPlan } from "@/types/domain";
+import { parseCourseLimitFromLimits } from "@/lib/plans/limits";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ type PlanForm = {
   yearlyPrice: string;
   badge: PremiumPlan["badge"] | "";
   claimedListings: string;
+  courseEnrollments: string;
   featuresText: string;
   enabled: boolean;
 };
@@ -48,6 +50,17 @@ function toForm(plan?: PremiumPlan): PlanForm {
       plan?.limits.claimedListings === "unlimited" || plan?.limits.claimedListings === "Unlimited"
         ? "unlimited"
         : String(plan?.limits.claimedListings ?? 1),
+    courseEnrollments: (() => {
+      const limit = plan ? parseCourseLimitFromLimits(plan.limits) : 5;
+      if (limit === null) {
+        return "unlimited";
+      }
+      const raw = plan?.limits.courses;
+      if (raw === undefined) {
+        return String(limit);
+      }
+      return String(raw);
+    })(),
     featuresText: plan?.features.join("\n") ?? "1 claimed listing\nLaunch updates\nBasic analytics",
     enabled: plan?.enabled ?? true
   };
@@ -131,6 +144,9 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
         .map((line) => line.trim())
         .filter(Boolean),
       claimedListings: parseClaimLimitInput(formState.claimedListings),
+      limits: {
+        courses: parseClaimLimitInput(formState.courseEnrollments)
+      },
       enabled: formState.enabled
     };
   }
@@ -332,17 +348,31 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
                 onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               />
             </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium" htmlFor="plan-claims">
-                Claimed listings limit
-              </label>
-              <Input
-                id="plan-claims"
-                value={form.claimedListings}
-                onChange={(event) => setForm((current) => ({ ...current, claimedListings: event.target.value }))}
-                placeholder="6 or unlimited"
-              />
-              <p className="text-xs text-muted-foreground">How many listings a founder on this plan can claim. Use a number or unlimited.</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium" htmlFor="plan-claims">
+                  Claimed listings limit
+                </label>
+                <Input
+                  id="plan-claims"
+                  value={form.claimedListings}
+                  onChange={(event) => setForm((current) => ({ ...current, claimedListings: event.target.value }))}
+                  placeholder="6 or unlimited"
+                />
+                <p className="text-xs text-muted-foreground">Listings a founder can claim. Use a number or unlimited.</p>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium" htmlFor="plan-courses">
+                  Course enrollment limit
+                </label>
+                <Input
+                  id="plan-courses"
+                  value={form.courseEnrollments}
+                  onChange={(event) => setForm((current) => ({ ...current, courseEnrollments: event.target.value }))}
+                  placeholder="5 or unlimited"
+                />
+                <p className="text-xs text-muted-foreground">How many courses a member can enroll in (e.g. Starter = 5).</p>
+              </div>
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium" htmlFor="plan-features">

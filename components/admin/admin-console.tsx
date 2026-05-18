@@ -11,6 +11,7 @@ import { AdminMemberTable } from "@/components/admin/admin-member-table";
 import { AdminBulkClaimPanel } from "@/components/admin/admin-bulk-claim-panel";
 import { AdminClaimRequestsPanel } from "@/components/admin/admin-claim-requests-panel";
 import { AdminPlansPanel } from "@/components/admin/admin-plans-panel";
+import { AdminCoursesPanel } from "@/components/admin/admin-courses-panel";
 // import { StripeSettingsForm } from "@/components/admin/stripe-settings-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const adminSections = [
   "Founders",
   "Subscriptions",
   "Plans",
+  "Courses",
   "Bulk Claim",
   "Claim Requests"
   // "Homepage",
@@ -182,6 +184,9 @@ export function AdminConsole({
         </TabsContent>
         <TabsContent value="plans" className="mt-0">
           <AdminPlansPanel initialPlans={data.premiumPlans} />
+        </TabsContent>
+        <TabsContent value="courses" className="mt-0">
+          <AdminCoursesPanel />
         </TabsContent>
         <TabsContent value="bulk claim" className="mt-0">
           <AdminBulkClaimPanel />
