@@ -1,7 +1,6 @@
 import { HomePageView } from "@/components/home/home-page-view";
-import { getHomePageData } from "@/lib/queries/home";
+import { getStaticHomePageData } from "@/lib/content/home-static";
 
-export default async function HomePage() {
-  const data = await getHomePageData();
-  return <HomePageView data={data} />;
+export default function HomePage() {
+  return <HomePageView data={getStaticHomePageData()} />;
 }

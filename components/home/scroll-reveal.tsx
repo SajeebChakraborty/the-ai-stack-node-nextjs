@@ -1,30 +1,66 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { easeSmooth, fadeUp, staggerContainer, staggerItem } from "@/lib/motion/variants";
 
-const defaultVariants: Variants = {
-  hidden: { opacity: 0, y: 36 },
-  visible: { opacity: 1, y: 0 }
-};
+type RevealDirection = "up" | "down" | "left" | "right";
+
+function offsetForDirection(direction: RevealDirection) {
+  switch (direction) {
+    case "down":
+      return { y: -28 };
+    case "left":
+      return { x: 32 };
+    case "right":
+      return { x: -32 };
+    default:
+      return { y: 32 };
+  }
+}
+
+function variantsForDirection(direction: RevealDirection): Variants {
+  const offset = offsetForDirection(direction);
+  return {
+    hidden: { opacity: 0, ...offset },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      transition: { duration: 0.65, ease: easeSmooth }
+    }
+  };
+}
+
+const viewport = { once: true, amount: 0.2, margin: "-48px" } as const;
 
 export function ScrollReveal({
   children,
   className,
-  delay = 0
+  delay = 0,
+  direction = "up"
 }: {
   children: ReactNode;
   className?: string;
   delay?: number;
+  direction?: RevealDirection;
 }) {
+  const reduceMotion = useReducedMotion();
+
+  if (reduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  const variants = direction === "up" ? fadeUp : variantsForDirection(direction);
+
   return (
     <motion.div
       className={className}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.2, margin: "-40px" }}
-      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay }}
-      variants={defaultVariants}
+      viewport={viewport}
+      transition={{ delay }}
+      variants={variants}
     >
       {children}
     </motion.div>
@@ -33,21 +69,29 @@ export function ScrollReveal({
 
 export function StaggerReveal({
   children,
-  className
+  className,
+  delayChildren = 0.05
 }: {
   children: ReactNode;
   className?: string;
+  delayChildren?: number;
 }) {
+  const reduceMotion = useReducedMotion();
+
+  if (reduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
     <motion.div
       className={className}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.15 }}
+      viewport={{ once: true, amount: 0.12, margin: "-40px" }}
       variants={{
         hidden: {},
         visible: {
-          transition: { staggerChildren: 0.12, delayChildren: 0.05 }
+          transition: { staggerChildren: 0.1, delayChildren }
         }
       }}
     >
@@ -56,16 +100,25 @@ export function StaggerReveal({
   );
 }
 
-export function StaggerItem({ children, className }: { children: ReactNode; className?: string }) {
+export function StaggerItem({
+  children,
+  className
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const reduceMotion = useReducedMotion();
+
+  if (reduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   return (
-    <motion.div
-      className={className}
-      variants={{
-        hidden: { opacity: 0, y: 28, scale: 0.97 },
-        visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } }
-      }}
-    >
+    <motion.div className={className} variants={staggerItem}>
       {children}
     </motion.div>
   );
 }
+
+/** Re-export for consumers that need the raw container variants */
+export { staggerContainer, staggerItem };

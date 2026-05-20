@@ -7,6 +7,10 @@ const FALLBACK_YOUTUBE_VIDEO_IDS = [
   "TlBMlNB6KhA"
 ] as const;
 
+function isYoutubeHost(host: string) {
+  return host.includes("youtube.com") || host.includes("youtube-nocookie.com");
+}
+
 export function normalizeYoutubeEmbedUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -17,9 +21,10 @@ export function normalizeYoutubeEmbedUrl(value: string) {
     const url = new URL(trimmed);
     const host = url.hostname.toLowerCase();
 
-    if (host.includes("youtube.com")) {
+    if (isYoutubeHost(host)) {
       if (url.pathname.startsWith("/embed/")) {
-        return trimmed;
+        const id = url.pathname.replace("/embed/", "").split("/")[0];
+        return id ? `https://www.youtube.com/embed/${id}` : trimmed;
       }
 
       const videoId = url.searchParams.get("v");
@@ -51,7 +56,7 @@ export function extractYoutubeVideoId(value: string): string | null {
     const url = new URL(normalizeYoutubeEmbedUrl(trimmed));
     const host = url.hostname.toLowerCase();
 
-    if (host.includes("youtube.com") && url.pathname.startsWith("/embed/")) {
+    if (isYoutubeHost(host) && url.pathname.startsWith("/embed/")) {
       return url.pathname.replace("/embed/", "").split("/")[0] || null;
     }
 
@@ -71,7 +76,10 @@ export function extractYoutubeVideoId(value: string): string | null {
 }
 
 export function buildYoutubeAutoplayEmbedUrl(videoIdOrUrl: string) {
-  const videoId = extractYoutubeVideoId(videoIdOrUrl) ?? videoIdOrUrl.replace(/[^a-zA-Z0-9_-]/g, "");
+  const trimmed = videoIdOrUrl.trim();
+  const videoId =
+    extractYoutubeVideoId(trimmed) ??
+    (/^[a-zA-Z0-9_-]{11}$/.test(trimmed) ? trimmed : null);
   if (!videoId) {
     return null;
   }

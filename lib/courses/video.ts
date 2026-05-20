@@ -17,9 +17,16 @@ export function getLessonVideoPlayer(url: string | null | undefined): LessonVide
       return { kind: "video", src: trimmed };
     }
 
-    if (parsed.hostname.includes("youtube.com")) {
+    const isYoutube =
+      parsed.hostname.includes("youtube.com") || parsed.hostname.includes("youtube-nocookie.com");
+
+    if (isYoutube) {
       if (parsed.pathname.startsWith("/embed/")) {
-        return { kind: "iframe", src: trimmed };
+        const id = parsed.pathname.replace("/embed/", "").split("/")[0];
+        return {
+          kind: "iframe",
+          src: id ? `https://www.youtube.com/embed/${id}` : trimmed
+        };
       }
       const id = parsed.searchParams.get("v");
       if (id) {

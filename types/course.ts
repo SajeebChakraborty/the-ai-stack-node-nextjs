@@ -52,6 +52,7 @@ export type CourseListItem = {
   categories: string[];
   featured: boolean;
   releasedLabel: string | null;
+  promoVideoUrl: string | null;
 };
 
 export type CourseDetail = CourseListItem & {

@@ -51,6 +51,7 @@ function mapListItem(course: {
   instructorName: string;
   featured: boolean;
   releasedAt: Date | null;
+  promoVideoUrl: string | null;
   categories: Array<{ category: { name: string } }>;
   reviews?: Array<{ rating: number }>;
 }): CourseListItem {
@@ -75,7 +76,8 @@ function mapListItem(course: {
     instructorName: course.instructorName,
     categories: course.categories.map((item) => item.category.name),
     featured: course.featured,
-    releasedLabel: toMonthYearLabel(course.releasedAt)
+    releasedLabel: toMonthYearLabel(course.releasedAt),
+    promoVideoUrl: course.promoVideoUrl
   };
 }
 
