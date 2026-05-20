@@ -1,6 +1,18 @@
-import type { Variants } from "framer-motion";
+import type { Transition, Variants } from "framer-motion";
 
 export const easeSmooth = [0.22, 1, 0.36, 1] as const;
+
+export const springSnappy: Transition = {
+  type: "spring",
+  stiffness: 340,
+  damping: 28
+};
+
+export const springSoft: Transition = {
+  type: "spring",
+  stiffness: 220,
+  damping: 26
+};
 
 export const heroStagger: Variants = {
   hidden: {},
@@ -28,11 +40,20 @@ export const fadeUp: Variants = {
 };
 
 export const fadeIn: Variants = {
-  hidden: { opacity: 0, scale: 0.98 },
+  hidden: { opacity: 0, scale: 0.96 },
   visible: {
     opacity: 1,
     scale: 1,
     transition: { duration: 0.55, ease: easeSmooth }
+  }
+};
+
+export const fadeScale: Variants = {
+  hidden: { opacity: 0, scale: 0.92 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: springSnappy
   }
 };
 
@@ -44,16 +65,19 @@ export const staggerContainer: Variants = {
 };
 
 export const staggerItem: Variants = {
-  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  hidden: { opacity: 0, y: 28, scale: 0.96 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.5, ease: easeSmooth }
+    transition: springSnappy
   }
 };
 
 export const cardHover = {
-  y: -6,
-  transition: { duration: 0.25, ease: easeSmooth }
+  y: -8,
+  scale: 1.015,
+  transition: springSnappy
 };
+
+export const cardTap = { scale: 0.99, transition: { duration: 0.15 } };

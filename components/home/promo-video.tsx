@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Play } from "lucide-react";
 import { buildYoutubeAutoplayEmbedUrl } from "@/lib/utils/youtube-embed";
+import { fadeScale } from "@/lib/motion/variants";
 import { cn } from "@/lib/utils/cn";
 import { RemoteImage } from "@/components/ui/remote-image";
 
@@ -25,6 +27,7 @@ export function PromoVideo({
   autoplay = false,
   showPlayOverlay = true
 }: PromoVideoProps) {
+  const reduceMotion = useReducedMotion();
   const embedUrl = useMemo(
     () => (videoUrl?.trim() ? buildYoutubeAutoplayEmbedUrl(videoUrl) : null),
     [videoUrl]
@@ -47,12 +50,15 @@ export function PromoVideo({
 
   if (playing && embedUrl) {
     return (
-      <div
+      <motion.div
         className={cn(
           "relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl",
           aspectClassName,
           className
         )}
+        variants={fadeScale}
+        initial="hidden"
+        animate="visible"
       >
         <iframe
           src={embedUrl}
@@ -62,7 +68,7 @@ export function PromoVideo({
           referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
         />
-      </div>
+      </motion.div>
     );
   }
 
@@ -90,9 +96,14 @@ export function PromoVideo({
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
       {showPlayOverlay && embedUrl ? (
-        <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-glow transition group-hover:scale-110 sm:h-16 sm:w-16">
+        <motion.span
+          className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-glow sm:h-16 sm:w-16"
+          whileHover={reduceMotion ? undefined : { scale: 1.12 }}
+          animate={reduceMotion ? undefined : { scale: [1, 1.06, 1] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        >
           <Play className="ml-1 h-6 w-6 fill-current sm:h-7 sm:w-7" />
-        </span>
+        </motion.span>
       ) : null}
     </button>
   );

@@ -39,12 +39,18 @@ export function CourseShowcaseCard({
           aspectClassName="h-full min-h-full"
           showPlayOverlay={Boolean(course.promoVideoUrl)}
         />
-        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+        <motion.div
+          className="absolute left-3 top-3 flex flex-wrap gap-2"
+          initial={reduceMotion ? false : { opacity: 0, x: -12 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2, duration: 0.4 }}
+        >
           {course.featured ? <Badge variant="premium">Featured</Badge> : null}
           <Badge variant="secondary" className="capitalize">
             {course.level}
           </Badge>
-        </div>
+        </motion.div>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">

@@ -162,7 +162,7 @@ export function DirectoryClient({
 
   return (
     <div className="grid gap-6">
-      <div className="rounded-xl border border-border bg-card p-4 shadow-md">
+      <div className="rounded-2xl border border-border/80 bg-card/80 p-4 shadow-sm backdrop-blur-sm sm:p-5">
         <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -228,7 +228,7 @@ export function DirectoryClient({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {tools.map((tool) => (
           <ToolCard
             key={tool.id}

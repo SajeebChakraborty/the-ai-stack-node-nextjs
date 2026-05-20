@@ -63,9 +63,15 @@ export function ToolSpotlightCard({
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         {rank != null ? (
-          <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          <motion.span
+            className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-glow"
+            initial={reduceMotion ? false : { scale: 0, rotate: -20 }}
+            whileInView={{ scale: 1, rotate: 0 }}
+            viewport={{ once: true }}
+            transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.15 }}
+          >
             {rank}
-          </span>
+          </motion.span>
         ) : null}
         {tool.verified ? (
           <Badge variant="verified" className="absolute right-3 top-3">
@@ -94,7 +100,9 @@ export function ToolSpotlightCard({
         </span>
         <span className="flex items-center gap-1 font-medium text-foreground group-hover:text-primary">
           View
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <motion.span className="inline-flex" whileHover={reduceMotion ? undefined : { x: 2, y: -2 }}>
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </motion.span>
         </span>
       </div>
     </Link>

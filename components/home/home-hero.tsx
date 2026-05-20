@@ -117,13 +117,13 @@ export function HomeHero({ stats, spotlightCourse }: HomeHeroProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.45 }}
             >
-              <motion.div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <Badge variant="premium">Featured course</Badge>
                 <span className="flex items-center gap-1">
                   <TrendingUp className="h-3.5 w-3.5 text-primary" />
                   {spotlightCourse.lessonCount} lessons
                 </span>
-              </motion.div>
+              </div>
               <h2 className="mt-2 font-display text-lg font-semibold leading-snug sm:text-xl">{spotlightCourse.title}</h2>
               <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{spotlightCourse.shortDescription}</p>
               <Button asChild className="mt-4 w-full sm:w-auto" size="sm">
