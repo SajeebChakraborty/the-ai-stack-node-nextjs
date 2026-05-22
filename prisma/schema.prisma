@@ -80,6 +80,21 @@ enum CourseLevel {
   advanced
 }
 
+enum AutomationStatus {
+  draft
+  published
+  archived
+}
+
+enum AutomationPurchaseStatus {
+  paid_holding
+  setup_confirmed
+  released
+  complained
+  refunded
+  cancelled
+}
+
 model Profile {
   id                 String             @id @default(cuid())
   externalAuthId     String?            @unique
@@ -99,6 +114,10 @@ model Profile {
   reputationScore    Int                @default(0)
   isVerified         Boolean            @default(false)
   suspendedAt        DateTime?
+  stripeAccountId               String?  @unique
+  stripeAccountChargesEnabled   Boolean  @default(false)
+  stripeAccountPayoutsEnabled   Boolean  @default(false)
+  stripeAccountDetailsSubmitted Boolean  @default(false)
   tools              Tool[]             @relation("FounderTools")
   reviews            Review[]
   discussions        Discussion[]
@@ -118,6 +137,10 @@ model Profile {
   reviewedListingClaimRequests ListingClaimRequest[] @relation("ListingClaimReviewer")
   courseEnrollments  CourseEnrollment[]
   courseReviews      CourseReview[]
+  authoredCourses    Course[]            @relation("CourseOwner")
+  coursePurchases    CoursePurchase[]
+  authoredAutomations Automation[]           @relation("AutomationOwner")
+  automationPurchases AutomationPurchase[]   @relation("AutomationBuyer")
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -662,7 +685,11 @@ model Course {
   lessonCount         Int                    @default(0)
   level               CourseLevel            @default(beginner)
   status              CourseStatus           @default(draft)
-  featured            Boolean                @default(false)
+  featured             Boolean               @default(false)
+  ownerId              String?
+  owner                Profile?              @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  priceCents           Int                   @default(0)
+  currency             String                @default("usd")
   instructorName      String
   instructorTitle     String?
   instructorAvatarUrl String?                @db.Text
@@ -674,12 +701,33 @@ model Course {
   faqs                CourseFaq[]
   reviews             CourseReview[]
   enrollments         CourseEnrollment[]
+  purchases            CoursePurchase[]
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
 
   @@index([status, featured, sortOrder])
   @@index([releasedAt])
+  @@index([ownerId, status])
   @@fulltext([title, shortDescription, description])
+}
+
+model CoursePurchase {
+  id                    String   @id @default(cuid())
+  courseId              String
+  buyerId               String
+  amountCents           Int
+  platformFeeCents      Int
+  creatorEarningCents   Int
+  currency              String   @default("usd")
+  stripeSessionId       String   @unique
+  stripePaymentIntentId String?
+  stripeAccountId       String?
+  course                Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  buyer                 Profile  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+
+  @@index([buyerId, createdAt])
+  @@index([courseId, createdAt])
 }
 
 model CourseCategoryOnCourse {
@@ -779,4 +827,80 @@ model CourseLessonProgress {
 
   @@unique([enrollmentId, lessonId])
   @@index([enrollmentId])
+}
+
+model Automation {
+  id                String               @id @default(cuid())
+  slug              String               @unique
+  title             String
+  shortDescription  String               @db.Text
+  description       String               @db.Text
+  thumbnailUrl      String?              @db.Text
+  promoVideoUrl     String?              @db.Text
+  /// URL to the seller's hosted .zip (S3, Drive, etc.).
+  /// Only revealed to the buyer once payment is captured.
+  zipFileUrl        String               @db.Text
+  /// Optional support docs / Loom walkthrough URL.
+  setupInstructions String?              @db.Text
+  /// Tools used (n8n, Make, Zapier, custom code, etc.).
+  toolingTags       Json?
+  /// What the automation does, in bullet points.
+  highlights        Json?
+  /// Estimated setup time in minutes (shown to buyers).
+  setupMinutes      Int                  @default(30)
+  priceCents        Int                  @default(0)
+  currency          String               @default("usd")
+  status            AutomationStatus     @default(draft)
+  featured          Boolean              @default(false)
+  ownerId           String
+  owner             Profile              @relation("AutomationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  purchases         AutomationPurchase[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([status, featured, createdAt])
+  @@index([ownerId, status])
+  @@fulltext([title, shortDescription, description])
+}
+
+model AutomationPurchase {
+  id                       String                  @id @default(cuid())
+  automationId             String
+  buyerId                  String
+  sellerId                 String
+  /// Total the buyer paid (price + buyer fee).
+  amountCents              Int
+  /// Just the seller-set price portion.
+  basePriceCents           Int
+  /// Fee collected from the buyer on top of the price.
+  buyerFeeCents            Int
+  /// Fee deducted from the seller's earning.
+  sellerFeeCents           Int
+  /// What the seller ultimately receives once released.
+  sellerEarningCents       Int
+  /// Total kept by the platform (buyerFee + sellerFee).
+  platformTotalCents       Int
+  currency                 String                  @default("usd")
+  status                   AutomationPurchaseStatus @default(paid_holding)
+  setupConfirmedAt         DateTime?
+  autoReleaseAt            DateTime?
+  releasedAt               DateTime?
+  releaseTransferId        String?
+  complaintReason          String?                 @db.Text
+  complaintAt              DateTime?
+  resolvedById             String?
+  resolvedAt               DateTime?
+  resolutionNotes          String?                 @db.Text
+  stripeSessionId          String                  @unique
+  stripePaymentIntentId    String?
+  /// Connect account funds will be sent to on release.
+  sellerStripeAccountId    String?
+  automation               Automation              @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  buyer                    Profile                 @relation("AutomationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  @@index([buyerId, createdAt])
+  @@index([sellerId, status])
+  @@index([status, autoReleaseAt])
 }

@@ -61,6 +61,9 @@ export async function getHomePageData() {
           instructorName: true,
           featured: true,
           releasedAt: true,
+          priceCents: true,
+          currency: true,
+          ownerId: true,
           categories: { include: { category: { select: { name: true } } } }
         }
       })
@@ -86,7 +89,10 @@ export async function getHomePageData() {
         featured: spotlightRow.featured,
         releasedLabel: spotlightRow.releasedAt
           ? new Date(spotlightRow.releasedAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
-          : null
+          : null,
+        priceCents: spotlightRow.priceCents,
+        currency: (spotlightRow.currency ?? "usd").toLowerCase(),
+        ownerId: spotlightRow.ownerId
       }
     : featuredCourses.courses[0] ?? null;
 

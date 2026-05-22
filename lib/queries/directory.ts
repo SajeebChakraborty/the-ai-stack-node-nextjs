@@ -2,11 +2,77 @@ import "server-only";
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { parseDirectoryPriorityDays } from "@/lib/plans/limits";
 import { findSeedToolBySlug } from "@/lib/queries/tools";
 import { sortTools } from "@/lib/utils/ranking";
 import { DEFAULT_TOOL_LOGO, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
 import type { DirectoryFilters, DirectoryTool } from "@/types/directory";
 import type { Tool } from "@/types/domain";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * For every active subscriber, derive how far back their listings still count
+ * as "directory priority" (based on the plan's directoryPriorityDays).
+ *
+ * Returns a map of founderId → cutoff Date. Listings owned by the founder
+ * with createdAt >= cutoff are boosted to the top of the directory.
+ */
+async function getDirectoryPriorityCutoffs(): Promise<Map<string, Date>> {
+  let activeSubscriptions: Array<{ userId: string; plan: { usageLimits: Prisma.JsonValue } }>;
+  try {
+    activeSubscriptions = await prisma.subscription.findMany({
+      where: { status: { in: ["active", "trialing"] } },
+      select: {
+        userId: true,
+        plan: { select: { usageLimits: true } }
+      }
+    });
+  } catch {
+    return new Map();
+  }
+
+  const now = Date.now();
+  const cutoffs = new Map<string, Date>();
+
+  for (const subscription of activeSubscriptions) {
+    const days = parseDirectoryPriorityDays(subscription.plan.usageLimits);
+    if (days <= 0) continue;
+
+    const cutoff = new Date(now - days * DAY_MS);
+    const existing = cutoffs.get(subscription.userId);
+    // Pick the longest active priority window for the user.
+    if (!existing || cutoff.getTime() < existing.getTime()) {
+      cutoffs.set(subscription.userId, cutoff);
+    }
+  }
+
+  return cutoffs;
+}
+
+/**
+ * Returns the IDs of tools that currently qualify for plan-based directory priority,
+ * filtered by the active directory query.
+ */
+async function getPriorityToolIdsForDirectory(where: Prisma.ToolWhereInput): Promise<string[]> {
+  const cutoffs = await getDirectoryPriorityCutoffs();
+  if (cutoffs.size === 0) return [];
+
+  const orConditions: Prisma.ToolWhereInput[] = [];
+  for (const [founderId, cutoff] of cutoffs.entries()) {
+    orConditions.push({ founderId, createdAt: { gte: cutoff } });
+  }
+
+  try {
+    const rows = await prisma.tool.findMany({
+      where: { AND: [where, { OR: orConditions }] },
+      select: { id: true }
+    });
+    return rows.map((row) => row.id);
+  } catch {
+    return [];
+  }
+}
 
 export type { DirectoryFilters };
 
@@ -246,23 +312,56 @@ export async function getDirectoryToolsPage(params?: {
   const orderBy = buildDirectoryOrderBy(sort);
 
   try {
-    const [total, dbTools] = await Promise.all([
-      prisma.tool.count({ where }),
-      prisma.tool.findMany({
-        where,
-        select: directoryToolSelect,
-        orderBy,
-        skip,
-        take: pageSize
-      })
+    const priorityIds = await getPriorityToolIdsForDirectory(where);
+    const priorityCount = priorityIds.length;
+
+    const total = await prisma.tool.count({ where });
+
+    // Compute which priority + non-priority rows fall on this page.
+    const priorityStart = Math.min(skip, priorityCount);
+    const priorityEnd = Math.min(skip + pageSize, priorityCount);
+    const priorityTakeForPage = Math.max(0, priorityEnd - priorityStart);
+    const nonPrioritySkip = Math.max(0, skip - priorityCount);
+    const nonPriorityTake = Math.max(0, pageSize - priorityTakeForPage);
+
+    const priorityWhere: Prisma.ToolWhereInput = priorityCount > 0
+      ? { AND: [where, { id: { in: priorityIds } }] }
+      : where;
+
+    const nonPriorityWhere: Prisma.ToolWhereInput = priorityCount > 0
+      ? { AND: [where, { id: { notIn: priorityIds } }] }
+      : where;
+
+    const [priorityRows, nonPriorityRows] = await Promise.all([
+      priorityTakeForPage > 0
+        ? prisma.tool.findMany({
+            where: priorityWhere,
+            select: directoryToolSelect,
+            // Newest priority listings appear first within the boosted block.
+            orderBy: [{ createdAt: "desc" }, ...orderBy],
+            skip: priorityStart,
+            take: priorityTakeForPage
+          })
+        : Promise.resolve([] as DirectoryDbTool[]),
+      nonPriorityTake > 0
+        ? prisma.tool.findMany({
+            where: nonPriorityWhere,
+            select: directoryToolSelect,
+            orderBy,
+            skip: nonPrioritySkip,
+            take: nonPriorityTake
+          })
+        : Promise.resolve([] as DirectoryDbTool[])
     ]);
 
+    const pageTools = [...priorityRows.map(mapDirectoryTool), ...nonPriorityRows.map(mapDirectoryTool)];
+
     return {
-      tools: dbTools.map(mapDirectoryTool),
+      tools: pageTools,
       total,
       page,
       pageSize,
-      hasMore: skip + dbTools.length < total
+      hasMore: skip + pageTools.length < total
     };
   } catch {
     return {

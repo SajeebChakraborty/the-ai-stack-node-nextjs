@@ -187,6 +187,9 @@ export function CoursesCatalogClient({
                   Enrolled
                 </Badge>
               ) : null}
+              <Badge className="absolute right-3 bottom-3" variant={course.priceCents > 0 ? "premium" : "secondary"}>
+                {course.priceCents > 0 ? `$${(course.priceCents / 100).toFixed(2)}` : "Free"}
+              </Badge>
             </div>
             <CardContent className="space-y-3 p-4">
               <div className="flex flex-wrap gap-2">
@@ -195,6 +198,7 @@ export function CoursesCatalogClient({
                     {name}
                   </Badge>
                 ))}
+                {course.ownerId ? <Badge variant="outline">Creator-led</Badge> : null}
               </div>
               <h2 className="text-lg font-semibold leading-snug">
                 <Link href={`/courses/${course.slug}`} className="hover:text-primary">
@@ -214,7 +218,9 @@ export function CoursesCatalogClient({
                 <span>{course.lessonCount} lessons</span>
               </div>
               <Button asChild size="sm" className="w-full">
-                <Link href={`/courses/${course.slug}`}>View course</Link>
+                <Link href={`/courses/${course.slug}`}>
+                  {course.priceCents > 0 ? `Buy for $${(course.priceCents / 100).toFixed(2)}` : "View course"}
+                </Link>
               </Button>
             </CardContent>
           </Card>

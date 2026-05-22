@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit3, RefreshCw, Trash2 } from "lucide-react";
 import type { PremiumPlan } from "@/types/domain";
-import { parseCourseLimitFromLimits } from "@/lib/plans/limits";
+import { parseCourseLimitFromLimits, parseDirectoryPriorityDays } from "@/lib/plans/limits";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ type PlanForm = {
   badge: PremiumPlan["badge"] | "";
   claimedListings: string;
   courseEnrollments: string;
+  directoryPriorityDays: string;
   featuresText: string;
   enabled: boolean;
 };
@@ -61,6 +62,7 @@ function toForm(plan?: PremiumPlan): PlanForm {
       }
       return String(raw);
     })(),
+    directoryPriorityDays: plan ? String(parseDirectoryPriorityDays(plan.limits)) : "0",
     featuresText: plan?.features.join("\n") ?? "1 claimed listing\nLaunch updates\nBasic analytics",
     enabled: plan?.enabled ?? true
   };
@@ -132,6 +134,11 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
   }
 
   function buildPayload(formState: PlanForm) {
+    const priorityDaysRaw = Number(formState.directoryPriorityDays);
+    const directoryPriorityDays = Number.isFinite(priorityDaysRaw)
+      ? Math.max(0, Math.min(365, Math.floor(priorityDaysRaw)))
+      : 0;
+
     return {
       id: formState.id.trim() || undefined,
       name: formState.name.trim(),
@@ -144,6 +151,7 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
         .map((line) => line.trim())
         .filter(Boolean),
       claimedListings: parseClaimLimitInput(formState.claimedListings),
+      directoryPriorityDays,
       limits: {
         courses: parseClaimLimitInput(formState.courseEnrollments)
       },
@@ -375,6 +383,25 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
               </div>
             </div>
             <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="plan-directory-priority">
+                Directory priority (days)
+              </label>
+              <Input
+                id="plan-directory-priority"
+                type="number"
+                min="0"
+                max="365"
+                step="1"
+                value={form.directoryPriorityDays}
+                onChange={(event) => setForm((current) => ({ ...current, directoryPriorityDays: event.target.value }))}
+                placeholder="e.g. 3"
+              />
+              <p className="text-xs text-muted-foreground">
+                Listings owned by subscribers on this plan rank first on the /directory page for this many days from each listing&apos;s
+                created date. Set to 0 to disable.
+              </p>
+            </div>
+            <div className="grid gap-2">
               <label className="text-sm font-medium" htmlFor="plan-features">
                 Features (one per line)
               </label>
@@ -419,6 +446,10 @@ export function AdminPlansPanel({ initialPlans }: { initialPlans: PremiumPlan[] 
                     {plan.limits.claimedListings === "unlimited" || plan.limits.claimedListings === "Unlimited"
                       ? "Unlimited claims"
                       : `${plan.limits.claimedListings ?? 0} claims`}
+                    {(() => {
+                      const days = parseDirectoryPriorityDays(plan.limits);
+                      return days > 0 ? ` · Priority ${days} day${days === 1 ? "" : "s"}` : "";
+                    })()}
                   </div>
                   {plan.stripeMonthlyPriceId ? (
                     <p className="mt-1 font-mono text-xs text-muted-foreground">

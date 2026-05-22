@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Filter, Loader2, Search } from "lucide-react";
 import type { DirectoryFilters } from "@/types/directory";
 import { ToolCard } from "@/components/directory/tool-card";
-import { Button } from "@/components/ui/button";
+import { DirectoryPagination } from "@/components/directory/directory-pagination";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -48,15 +48,16 @@ export function DirectoryClient({
   const [page, setPage] = useState(1);
   const [tools, setTools] = useState<Tool[]>(initialData?.tools ?? []);
   const [total, setTotal] = useState(initialData?.total ?? 0);
-  const [hasMore, setHasMore] = useState(initialData?.hasMore ?? false);
   const [pendingClaimToolIds, setPendingClaimToolIds] = useState<Set<string>>(() => new Set());
   const [filters, setFilters] = useState<DirectoryFilters>(
     initialData?.filters ?? { categories: [], pricingModels: [] }
   );
   const [loading, setLoading] = useState(!initialData);
-  const [loadingMore, setLoadingMore] = useState(false);
   const fetchControllerRef = useRef<AbortController | null>(null);
   const skipInitialFetchRef = useRef(Boolean(initialData));
+  const gridRef = useRef<HTMLDivElement | null>(null);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -81,16 +82,12 @@ export function DirectoryClient({
   }, [initialData?.filters]);
 
   const loadDirectory = useCallback(
-    async (targetPage: number, mode: "replace" | "append") => {
+    async (targetPage: number) => {
       fetchControllerRef.current?.abort();
       const controller = new AbortController();
       fetchControllerRef.current = controller;
 
-      if (mode === "replace") {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      setLoading(true);
 
       try {
         const params = new URLSearchParams({
@@ -115,9 +112,8 @@ export function DirectoryClient({
         const payload = (await response.json()) as DirectoryListPayload;
         const nextTools = payload.tools ?? [];
 
-        setTools((current) => (mode === "append" ? [...current, ...nextTools] : nextTools));
+        setTools(nextTools);
         setTotal(payload.total ?? nextTools.length);
-        setHasMore(Boolean(payload.hasMore));
         setPage(payload.page ?? targetPage);
         setPendingClaimToolIds(new Set(payload.pendingClaimToolIds ?? []));
       } catch (error) {
@@ -125,40 +121,41 @@ export function DirectoryClient({
           return;
         }
 
-        if (mode === "replace") {
-          setTools([]);
-          setTotal(0);
-          setHasMore(false);
-        }
+        setTools([]);
+        setTotal(0);
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
-          setLoadingMore(false);
         }
       }
     },
     [category, debouncedQuery, pricing, sort, verifiedOnly]
   );
 
+  /** Refetch from page 1 when filters/sort/search change. */
   useEffect(() => {
     if (skipInitialFetchRef.current) {
       skipInitialFetchRef.current = false;
       return;
     }
     setPage(1);
-    void loadDirectory(1, "replace");
+    void loadDirectory(1);
   }, [loadDirectory]);
 
   const categoryOptions = useMemo(() => filters.categories, [filters.categories]);
   const pendingClaimSet = pendingClaimToolIds;
 
-  function loadMore() {
-    if (loadingMore || !hasMore) {
-      return;
+  function handlePageChange(target: number) {
+    setPage(target);
+    void loadDirectory(target);
+    if (gridRef.current) {
+      const top = gridRef.current.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top, behavior: "smooth" });
     }
-
-    void loadDirectory(page + 1, "append");
   }
+
+  const startIndex = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endIndex = Math.min(total, page * PAGE_SIZE);
 
   return (
     <div className="grid gap-6">
@@ -215,20 +212,26 @@ export function DirectoryClient({
             Verified
           </label>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Filter className="h-4 w-4" />
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading directory listings...
             </>
+          ) : total === 0 ? (
+            "No published listings match your filters."
           ) : (
-            `${total} published listing${total === 1 ? "" : "s"} match your filters.`
+            <>
+              Showing <span className="font-medium text-foreground">{startIndex}–{endIndex}</span>{" "}
+              of <span className="font-medium text-foreground">{total}</span> listing
+              {total === 1 ? "" : "s"} · Page {page} of {totalPages}
+            </>
           )}
         </div>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div ref={gridRef} className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {tools.map((tool) => (
           <ToolCard
             key={tool.id}
@@ -245,18 +248,12 @@ export function DirectoryClient({
         </div>
       ) : null}
 
-      {hasMore ? (
-        <Button variant="outline" className="mx-auto" disabled={loadingMore} onClick={loadMore}>
-          {loadingMore ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading...
-            </>
-          ) : (
-            "Load more tools"
-          )}
-        </Button>
-      ) : null}
+      <DirectoryPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        disabled={loading}
+      />
     </div>
   );
 }

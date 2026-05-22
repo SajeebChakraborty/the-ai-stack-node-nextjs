@@ -19,7 +19,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      disableTransitionOnChange
+      storageKey="theaistack-theme-v2"
+    >
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster richColors closeButton position="top-center" />

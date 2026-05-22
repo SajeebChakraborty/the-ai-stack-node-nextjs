@@ -6,13 +6,21 @@ import { buildPlanLimits } from "@/lib/plans/limits";
 import { syncPremiumPlanToStripe } from "@/lib/stripe/sync-plan";
 import { premiumPlanWriteSchema } from "@/lib/validation/schemas";
 
-function resolvePlanLimits(data: { limits?: Record<string, number | string>; claimedListings?: number | "unlimited" }, existing?: unknown) {
+function resolvePlanLimits(
+  data: {
+    limits?: Record<string, number | string>;
+    claimedListings?: number | "unlimited";
+    directoryPriorityDays?: number;
+  },
+  existing?: unknown
+) {
   return buildPlanLimits({
     limits: {
       ...((existing && typeof existing === "object" && !Array.isArray(existing) ? (existing as Record<string, number | string>) : {}) ?? {}),
       ...(data.limits ?? {})
     },
-    claimedListings: data.claimedListings
+    claimedListings: data.claimedListings,
+    directoryPriorityDays: data.directoryPriorityDays
   });
 }
 

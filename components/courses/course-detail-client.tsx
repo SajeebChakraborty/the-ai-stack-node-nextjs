@@ -37,13 +37,20 @@ function CourseSidebarCard({
   course,
   enrolling,
   onEnroll,
+  buying,
+  onBuy,
   className
 }: {
   course: CourseDetail;
   enrolling: boolean;
   onEnroll: () => void;
+  buying: boolean;
+  onBuy: () => void;
   className?: string;
 }) {
+  const isPaid = course.priceCents > 0;
+  const priceLabel = isPaid ? `$${(course.priceCents / 100).toFixed(2)}` : "Free";
+
   return (
     <Card className={cn("overflow-hidden shadow-glow", className)}>
       {course.thumbnailUrl ? (
@@ -56,6 +63,10 @@ function CourseSidebarCard({
         />
       ) : null}
       <CardContent className="space-y-4 p-4 sm:p-5">
+        <div className="flex items-baseline justify-between">
+          <p className="text-3xl font-semibold tracking-tight">{priceLabel}</p>
+          {isPaid ? <span className="text-xs uppercase tracking-wider text-muted-foreground">One-time payment</span> : null}
+        </div>
         {course.enrolled ? (
           <>
             <div className="rounded-lg border bg-secondary/40 p-3 text-sm">
@@ -75,6 +86,10 @@ function CourseSidebarCard({
               </Button>
             )}
           </>
+        ) : isPaid ? (
+          <Button className="w-full min-h-[44px]" disabled={buying} onClick={onBuy}>
+            {buying ? "Redirecting to Stripe..." : `Buy course for ${priceLabel}`}
+          </Button>
         ) : (
           <Button className="w-full min-h-[44px]" disabled={enrolling} onClick={onEnroll}>
             {enrolling ? "Enrolling..." : "Enroll in course"}
@@ -99,6 +114,7 @@ function CourseSidebarCard({
 export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDetail }) {
   const [course, setCourse] = useState(initialCourse);
   const [enrolling, setEnrolling] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(course.sections[0]?.id ?? null);
   const [activeLesson, setActiveLesson] = useState<CourseLessonView | null>(null);
   const promoEmbed = getYoutubeEmbed(course.promoVideoUrl);
@@ -169,6 +185,38 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
     }
   }
 
+  async function handleBuy() {
+    setBuying(true);
+    try {
+      const response = await fetch("/api/courses/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: course.slug })
+      });
+      const payload = (await response.json()) as { url?: string; error?: string };
+
+      if (response.status === 401) {
+        window.location.href = `/auth/login?next=${encodeURIComponent(`/courses/${course.slug}`)}`;
+        return;
+      }
+
+      if (!response.ok || !payload.url) {
+        toast.error("Could not start checkout", {
+          description: payload.error ?? "Try again in a moment."
+        });
+        return;
+      }
+
+      window.location.href = payload.url;
+    } catch (error) {
+      toast.error("Could not start checkout", {
+        description: error instanceof Error ? error.message : "Network error."
+      });
+    } finally {
+      setBuying(false);
+    }
+  }
+
   async function markLessonComplete(lessonId: string) {
     const response = await fetch(`/api/courses/${course.slug}/progress`, {
       method: "POST",
@@ -185,7 +233,13 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
     <div className="relative overflow-x-hidden pb-28 lg:pb-0">
       {/* Mobile / tablet: enroll & progress above the fold */}
       <div className="mb-6 lg:hidden">
-        <CourseSidebarCard course={course} enrolling={enrolling} onEnroll={() => void handleEnroll()} />
+        <CourseSidebarCard
+          course={course}
+          enrolling={enrolling}
+          onEnroll={() => void handleEnroll()}
+          buying={buying}
+          onBuy={() => void handleBuy()}
+        />
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_min(280px,360px)] lg:items-start xl:gap-10">
@@ -442,7 +496,13 @@ export function CourseDetailClient({ initialCourse }: { initialCourse: CourseDet
 
         {/* Desktop sidebar */}
         <aside className="hidden space-y-4 lg:sticky lg:top-20 lg:block lg:self-start xl:top-24">
-          <CourseSidebarCard course={course} enrolling={enrolling} onEnroll={() => void handleEnroll()} />
+          <CourseSidebarCard
+            course={course}
+            enrolling={enrolling}
+            onEnroll={() => void handleEnroll()}
+            buying={buying}
+            onBuy={() => void handleBuy()}
+          />
 
           <Card>
             <CardContent className="flex items-center gap-3 p-4">

@@ -9,7 +9,13 @@ export type UserDashboardView =
   | "membership"
   | "bookmarks"
   | "claim-requests"
-  | "my-courses";
+  | "my-courses"
+  | "create-course"
+  | "my-created-courses"
+  | "create-automation"
+  | "my-created-automations"
+  | "my-purchased-automations"
+  | "wallet";
 
 type UserDashboardNavContextValue = {
   setView: (view: UserDashboardView) => void;

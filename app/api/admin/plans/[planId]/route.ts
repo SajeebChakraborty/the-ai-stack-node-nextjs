@@ -7,7 +7,11 @@ import { archivePremiumPlanInStripe, syncPremiumPlanToStripe } from "@/lib/strip
 import { premiumPlanWriteSchema } from "@/lib/validation/schemas";
 
 function resolvePlanLimits(
-  data: { limits?: Record<string, number | string>; claimedListings?: number | "unlimited" },
+  data: {
+    limits?: Record<string, number | string>;
+    claimedListings?: number | "unlimited";
+    directoryPriorityDays?: number;
+  },
   existing?: unknown
 ) {
   return buildPlanLimits({
@@ -15,7 +19,8 @@ function resolvePlanLimits(
       ...((existing && typeof existing === "object" && !Array.isArray(existing) ? (existing as Record<string, number | string>) : {}) ?? {}),
       ...(data.limits ?? {})
     },
-    claimedListings: data.claimedListings
+    claimedListings: data.claimedListings,
+    directoryPriorityDays: data.directoryPriorityDays
   });
 }
 

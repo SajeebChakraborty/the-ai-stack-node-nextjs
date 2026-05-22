@@ -53,6 +53,9 @@ export type CourseListItem = {
   featured: boolean;
   releasedLabel: string | null;
   promoVideoUrl: string | null;
+  priceCents: number;
+  currency: string;
+  ownerId: string | null;
 };
 
 export type CourseDetail = CourseListItem & {
@@ -72,6 +75,7 @@ export type CourseDetail = CourseListItem & {
   completed: boolean;
   progressPercent: number;
   completedLessons: number;
+  hasPurchased: boolean;
 };
 
 export type CourseEnrollmentSummary = {

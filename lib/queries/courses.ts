@@ -52,6 +52,9 @@ function mapListItem(course: {
   featured: boolean;
   releasedAt: Date | null;
   promoVideoUrl: string | null;
+  priceCents?: number | null;
+  currency?: string | null;
+  ownerId?: string | null;
   categories: Array<{ category: { name: string } }>;
   reviews?: Array<{ rating: number }>;
 }): CourseListItem {
@@ -77,7 +80,10 @@ function mapListItem(course: {
     categories: course.categories.map((item) => item.category.name),
     featured: course.featured,
     releasedLabel: toMonthYearLabel(course.releasedAt),
-    promoVideoUrl: course.promoVideoUrl
+    promoVideoUrl: course.promoVideoUrl,
+    priceCents: course.priceCents ?? 0,
+    currency: (course.currency ?? "usd").toLowerCase(),
+    ownerId: course.ownerId ?? null
   };
 }
 
@@ -188,6 +194,8 @@ export async function getCourseDetailBySlug(slug: string, userId?: string | null
       }
     | null = null;
 
+  let hasPurchased = false;
+
   if (userId) {
     enrollment = await prisma.courseEnrollment.findUnique({
       where: {
@@ -202,6 +210,16 @@ export async function getCourseDetailBySlug(slug: string, userId?: string | null
         lessonProgress: { select: { lessonId: true } }
       }
     });
+
+    if (course.priceCents > 0) {
+      const purchase = await prisma.coursePurchase.findFirst({
+        where: { buyerId: userId, courseId: course.id },
+        select: { id: true }
+      });
+      hasPurchased = Boolean(purchase);
+    } else {
+      hasPurchased = true;
+    }
   }
 
   const completedLessonIds = new Set(enrollment?.lessonProgress.map((item) => item.lessonId) ?? []);
@@ -262,7 +280,8 @@ export async function getCourseDetailBySlug(slug: string, userId?: string | null
     enrolled: Boolean(enrollment),
     completed: Boolean(enrollment?.completedAt),
     progressPercent,
-    completedLessons
+    completedLessons,
+    hasPurchased
   };
 
   return { course: detail, enrollmentId: enrollment?.id ?? null };
@@ -332,6 +351,9 @@ export type AdminCourseInput = {
   instructorAvatarUrl?: string;
   instructorBio?: string;
   releasedAt?: string | null;
+  ownerId?: string | null;
+  priceCents?: number;
+  currency?: string;
   categorySlugs?: string[];
   sections?: Array<{
     id?: string;
@@ -565,7 +587,10 @@ export async function createAdminCourse(input: AdminCourseInput) {
       instructorBio: input.instructorBio || null,
       releasedAt: input.releasedAt ? new Date(input.releasedAt) : null,
       lessonCount: stats.lessonCount,
-      durationMinutes: stats.durationMinutes
+      durationMinutes: stats.durationMinutes,
+      ownerId: input.ownerId ?? null,
+      priceCents: Math.max(0, Math.round(input.priceCents ?? 0)),
+      currency: (input.currency ?? "usd").toLowerCase()
     }
   });
 
@@ -605,7 +630,10 @@ export async function updateAdminCourse(courseId: string, input: AdminCourseInpu
       instructorBio: input.instructorBio || null,
       releasedAt: input.releasedAt ? new Date(input.releasedAt) : null,
       lessonCount: stats.lessonCount,
-      durationMinutes: stats.durationMinutes
+      durationMinutes: stats.durationMinutes,
+      ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
+      ...(input.priceCents !== undefined ? { priceCents: Math.max(0, Math.round(input.priceCents)) } : {}),
+      ...(input.currency !== undefined ? { currency: input.currency.toLowerCase() } : {})
     }
   });
 
@@ -616,6 +644,68 @@ export async function updateAdminCourse(courseId: string, input: AdminCourseInpu
 
 export async function deleteAdminCourse(courseId: string) {
   await prisma.course.delete({ where: { id: courseId } });
+}
+
+export async function listCoursesByOwner(ownerId: string) {
+  const rows = await prisma.course.findMany({
+    where: { ownerId },
+    orderBy: [{ updatedAt: "desc" }],
+    include: {
+      categories: { include: { category: { select: { name: true } } } },
+      _count: { select: { enrollments: true, sections: true, purchases: true } }
+    }
+  });
+
+  return rows.map((course) => ({
+    id: course.id,
+    slug: course.slug,
+    title: course.title,
+    shortDescription: course.shortDescription,
+    status: course.status as CourseStatus,
+    priceCents: course.priceCents,
+    currency: course.currency,
+    thumbnailUrl: course.thumbnailUrl,
+    enrollmentCount: course._count.enrollments,
+    purchaseCount: course._count.purchases,
+    sectionCount: course._count.sections,
+    lessonCount: course.lessonCount,
+    updatedAt: course.updatedAt.toISOString(),
+    createdAt: course.createdAt.toISOString()
+  }));
+}
+
+export async function getOwnedCourseById(ownerId: string, courseId: string) {
+  return prisma.course.findFirst({
+    where: { id: courseId, ownerId },
+    include: {
+      categories: { include: { category: true } },
+      sections: { orderBy: { sortOrder: "asc" }, include: { lessons: { orderBy: { sortOrder: "asc" } } } },
+      faqs: { orderBy: { sortOrder: "asc" } }
+    }
+  });
+}
+
+export async function deleteOwnedCourse(ownerId: string, courseId: string) {
+  const course = await prisma.course.findFirst({
+    where: { id: courseId, ownerId },
+    select: { id: true, _count: { select: { purchases: true } } }
+  });
+
+  if (!course) {
+    return { ok: false as const, reason: "not_found" as const };
+  }
+
+  if (course._count.purchases > 0) {
+    // Soft-archive to preserve buyer access + audit trail.
+    await prisma.course.update({
+      where: { id: courseId },
+      data: { status: "archived" }
+    });
+    return { ok: true as const, archived: true };
+  }
+
+  await prisma.course.delete({ where: { id: courseId } });
+  return { ok: true as const, archived: false };
 }
 
 export async function enrollUserInCourse(userId: string, courseId: string) {

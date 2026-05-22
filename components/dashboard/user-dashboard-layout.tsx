@@ -1,8 +1,27 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { Bookmark, BookOpen, Crown, FileText, LayoutDashboard, ListChecks, PlusCircle } from "lucide-react";
+import {
+  Bookmark,
+  BookOpen,
+  Crown,
+  FileText,
+  LayoutDashboard,
+  ListChecks,
+  PlusCircle,
+  ShoppingBag,
+  Sparkles,
+  Wallet,
+  Workflow,
+  Zap
+} from "lucide-react";
 import { MyCoursesPanel } from "@/components/dashboard/my-courses-panel";
+import { CourseCreatorPanel } from "@/components/dashboard/course-creator-panel";
+import { MyCreatedCoursesPanel } from "@/components/dashboard/my-created-courses-panel";
+import { CreatorWalletPanel } from "@/components/dashboard/creator-wallet-panel";
+import { AutomationCreatorPanel } from "@/components/dashboard/automation-creator-panel";
+import { MyCreatedAutomationsPanel } from "@/components/dashboard/my-created-automations-panel";
+import { MyPurchasedAutomationsPanel } from "@/components/dashboard/my-purchased-automations-panel";
 import type { CourseEnrollmentSummary } from "@/types/course";
 import { BookmarksPanel } from "@/components/dashboard/bookmarks-panel";
 import { ClaimRequestsPanel } from "@/components/dashboard/claim-requests-panel";
@@ -34,6 +53,42 @@ const navItems: Array<{
     label: "My courses",
     description: "Enrollments, progress & certificates",
     icon: BookOpen
+  },
+  {
+    id: "create-course",
+    label: "Create course",
+    description: "Publish a paid or free course",
+    icon: Sparkles
+  },
+  {
+    id: "my-created-courses",
+    label: "My created courses",
+    description: "Sales, edits, and updates",
+    icon: BookOpen
+  },
+  {
+    id: "create-automation",
+    label: "Create automation",
+    description: "Publish a workflow + setup service",
+    icon: Zap
+  },
+  {
+    id: "my-created-automations",
+    label: "My automations",
+    description: "Sales, edits, and setups",
+    icon: Workflow
+  },
+  {
+    id: "my-purchased-automations",
+    label: "Purchased automations",
+    description: "Confirm setup or file a complaint",
+    icon: ShoppingBag
+  },
+  {
+    id: "wallet",
+    label: "Wallet",
+    description: "Earnings & Stripe payouts",
+    icon: Wallet
   },
   {
     id: "dashboard",
@@ -100,6 +155,12 @@ export function UserDashboardLayout({
   useEffect(() => {
     if (window.location.hash === `#${CREATE_CLAIM_SECTION_ID}`) {
       setActiveView("create");
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get("view");
+    if (viewParam && navItems.some((item) => item.id === viewParam)) {
+      setActiveView(viewParam as UserDashboardView);
     }
   }, []);
 
@@ -175,6 +236,18 @@ export function UserDashboardLayout({
                 </div>
               ) : activeView === "my-courses" ? (
                 <MyCoursesPanel enrollments={courseEnrollments} />
+              ) : activeView === "create-course" ? (
+                <CourseCreatorPanel onCreated={() => setActiveView("my-created-courses")} />
+              ) : activeView === "my-created-courses" ? (
+                <MyCreatedCoursesPanel />
+              ) : activeView === "create-automation" ? (
+                <AutomationCreatorPanel onCreated={() => setActiveView("my-created-automations")} />
+              ) : activeView === "my-created-automations" ? (
+                <MyCreatedAutomationsPanel />
+              ) : activeView === "my-purchased-automations" ? (
+                <MyPurchasedAutomationsPanel />
+              ) : activeView === "wallet" ? (
+                <CreatorWalletPanel />
               ) : activeView === "membership" ? (
                 <MembershipPanel initialMembership={membership} />
               ) : activeView === "bookmarks" ? (

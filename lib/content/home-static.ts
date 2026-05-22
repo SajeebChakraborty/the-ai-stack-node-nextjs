@@ -22,7 +22,9 @@ export type HomePageData = {
   plans: PremiumPlan[];
 };
 
-const staticCourses: CourseListItem[] = [
+type StaticCourseSeed = Omit<CourseListItem, "priceCents" | "currency" | "ownerId">;
+
+const staticCourseSeeds: StaticCourseSeed[] = [
   {
     id: "c1",
     slug: "ai-website-builder-crash-course",
@@ -132,6 +134,13 @@ const staticCourses: CourseListItem[] = [
     releasedLabel: "July 2025"
   }
 ];
+
+const staticCourses: CourseListItem[] = staticCourseSeeds.map((seed) => ({
+  ...seed,
+  priceCents: 0,
+  currency: "usd",
+  ownerId: null
+}));
 
 function mapReviews() {
   const toolBySlug = Object.fromEntries(tools.map((t) => [t.slug, t.name]));
