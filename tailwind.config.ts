@@ -93,16 +93,49 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-12px)" }
         },
+        "float-y": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-16px)" }
+        },
         shimmer: {
           "0%": { backgroundPosition: "0% center" },
           "100%": { backgroundPosition: "200% center" }
+        },
+        aurora: {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)", opacity: "0.55" },
+          "50%": { transform: "translate3d(0, -5%, 0) scale(1.15)", opacity: "0.85" }
+        },
+        "spin-slow": {
+          to: { transform: "rotate(360deg)" }
+        },
+        "spin-slower": {
+          to: { transform: "rotate(-360deg)" }
+        },
+        "grid-pan": {
+          "0%": { backgroundPosition: "0px 0px" },
+          "100%": { backgroundPosition: "44px 44px" }
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.06)" }
+        },
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" }
         }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         float: "float 6s ease-in-out infinite",
-        shimmer: "shimmer 8s linear infinite"
+        "float-y": "float-y 7s ease-in-out infinite",
+        shimmer: "shimmer 8s linear infinite",
+        aurora: "aurora 16s ease-in-out infinite",
+        "spin-slow": "spin-slow 28s linear infinite",
+        "spin-slower": "spin-slower 44s linear infinite",
+        "grid-pan": "grid-pan 20s linear infinite",
+        "pulse-glow": "pulse-glow 5s ease-in-out infinite",
+        marquee: "marquee 34s linear infinite"
       }
     }
   },

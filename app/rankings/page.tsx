@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowUpRight, Flame, Sparkles, Star } from "lucide-react";
 import { RankingsBoard, type RankingsBoardList } from "@/components/rankings/rankings-board";
 import { RankingsHero } from "@/components/rankings/rankings-hero";
+import { ScrollReveal, StaggerItem, StaggerReveal } from "@/components/home/scroll-reveal";
 import { SectionShell } from "@/components/layout/section";
 import { getRankingsBoard } from "@/lib/queries/rankings";
 import { buildPageMetadata } from "@/lib/seo/build-metadata";
@@ -79,43 +80,52 @@ export default async function RankingsPage() {
   ];
 
   return (
-    <SectionShell className="py-10 md:py-14">
-      <RankingsHero />
+    <div className="dark landing-root min-h-screen overflow-x-hidden">
+      <SectionShell className="py-10 md:py-14">
+        <RankingsHero />
 
-      <RankingsBoard lists={lists} />
+        <RankingsBoard lists={lists} />
 
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
-        {formulaCards.map((card) => {
-          const Icon = card.icon;
-          return (
+        <StaggerReveal className="mt-10 grid gap-4 md:grid-cols-3">
+          {formulaCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <StaggerItem key={card.title}>
+                <div className="glow-card glow-card-hover group h-full overflow-hidden p-6">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-primary shadow-[0_0_24px_-6px_hsl(var(--primary)/0.7)] transition-transform duration-300 group-hover:scale-110">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-4 font-display text-base font-semibold text-white">{card.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-white/60">{card.description}</p>
+                </div>
+              </StaggerItem>
+            );
+          })}
+        </StaggerReveal>
+
+        <ScrollReveal direction="scale" className="mt-8">
+          <div className="glow-card relative flex flex-col items-start justify-between gap-4 overflow-hidden p-6 sm:flex-row sm:items-center sm:p-8">
             <div
-              key={card.title}
-              className={`relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br ${card.color} p-5`}
-            >
-              <Icon className="h-5 w-5 text-foreground" />
-              <h3 className="mt-3 font-display text-base font-semibold">{card.title}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
+              aria-hidden
+              className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl"
+            />
+            <div className="relative">
+              <h2 className="font-display text-xl font-semibold text-white sm:text-2xl">
+                Want to compare every tool side-by-side?
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-white/60">
+                Explore the full directory with filters for pricing, category, and verification status.
+              </p>
             </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-border/70 bg-card/60 p-6 sm:flex-row sm:items-center sm:p-8">
-        <div>
-          <h2 className="font-display text-xl font-semibold sm:text-2xl">
-            Want to compare every tool side-by-side?
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Explore the full directory with filters for pricing, category, and verification status.
-          </p>
-        </div>
-        <Button asChild size="lg" className="shrink-0">
-          <Link href="/directory">
-            Explore directory
-            <ArrowUpRight className="ml-2 h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-    </SectionShell>
+            <Button asChild size="lg" className="relative shrink-0">
+              <Link href="/directory">
+                Explore directory
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </ScrollReveal>
+      </SectionShell>
+    </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Award, Compass, GraduationCap } from "lucide-react";
 import type { HomePageData } from "@/lib/content/home-static";
 import { HomeHero } from "@/components/home/home-hero";
 import { CourseShowcaseCard } from "@/components/home/course-showcase-card";
 import { ToolSpotlightCard } from "@/components/home/tool-spotlight-card";
+import { ToolMarquee } from "@/components/home/tool-marquee";
 import { MembershipCta } from "@/components/home/membership-cta";
 import { ReviewQuoteCard } from "@/components/home/review-quote-card";
 import { ScrollReveal, SectionHeader, StaggerItem, StaggerReveal } from "@/components/home/scroll-reveal";
@@ -30,16 +31,35 @@ export function HomePageView({ data }: { data: HomePageData }) {
   const [leadCourse, ...gridCourses] = data.featuredCourses;
   const [leadTool, ...otherTools] = data.trendingTools;
 
+  const marqueeItems = [
+    ...data.trendingTools.map((tool) => tool.name),
+    "AI Agents",
+    "Automation",
+    "Generative AI",
+    "Analytics",
+    "Creative",
+    "Productivity"
+  ];
+
+  const valuePropIcons = [GraduationCap, Compass, Award];
+
   return (
-    <div className="overflow-x-hidden">
+    <div className="dark landing-root overflow-x-hidden">
       <HomeHero stats={heroStats} spotlightCourse={data.spotlightCourse ?? leadCourse ?? null} />
 
-      <section className="border-b bg-muted/20 py-10 sm:py-12">
+      <ToolMarquee items={marqueeItems} />
+
+      <section className="border-b border-white/10 bg-white/[0.02] py-10 sm:py-12">
         <SectionShell>
           <StaggerReveal className="grid gap-6 md:grid-cols-3">
-            {homeValueProps.map((item) => (
+            {homeValueProps.map((item, index) => (
               <StaggerItem key={item.title}>
-                <ValuePropCard title={item.title} description={item.description} accent={item.accent} />
+                <ValuePropCard
+                  title={item.title}
+                  description={item.description}
+                  icon={valuePropIcons[index]}
+                  index={index}
+                />
               </StaggerItem>
             ))}
           </StaggerReveal>
@@ -81,11 +101,11 @@ export function HomePageView({ data }: { data: HomePageData }) {
         </SectionShell>
       </Section>
 
-      <Section className="border-y bg-secondary/15">
+      <Section className="border-y border-white/10 bg-white/[0.02]">
         <SectionShell>
           <SectionHeader
             direction="right"
-            eyebrow={<Badge variant="outline">Directory</Badge>}
+            eyebrow={<Badge variant="outline" className="border-primary/30 text-primary">Directory</Badge>}
             title="Trending tools with video previews"
             description="See what's rising in the market—ranked by trust, reviews, and growth signals."
             action={
@@ -127,7 +147,7 @@ export function HomePageView({ data }: { data: HomePageData }) {
       </Section>
 
       {data.recentReviews.length > 0 ? (
-        <Section className="bg-gradient-to-b from-muted/40 to-background">
+        <Section className="bg-gradient-to-b from-white/[0.04] to-transparent">
           <SectionShell>
             <SectionHeader title="Trusted by real buyers" />
             <StaggerReveal className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -157,7 +177,7 @@ export function HomePageView({ data }: { data: HomePageData }) {
         </Section>
       ) : null}
 
-      <Section compact className="border-t">
+      <Section compact className="border-t border-white/10">
         <SectionShell>
           <SectionHeader title="Frequently asked questions" />
           <StaggerReveal className="mt-6 w-full max-w-3xl" delayChildren={0.06}>

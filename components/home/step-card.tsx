@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { cardHover } from "@/lib/motion/variants";
 
 export function StepCard({
   step,
@@ -16,11 +15,14 @@ export function StepCard({
 
   return (
     <motion.div
-      className="relative rounded-2xl border border-transparent p-4 transition-colors hover:border-border/60 hover:bg-muted/30 md:pl-0 md:pt-14 md:text-center"
-      whileHover={reduceMotion ? undefined : { ...cardHover, scale: 1.02 }}
+      className="glow-card glow-card-hover group relative h-full overflow-hidden p-6 sm:p-7"
+      whileHover={reduceMotion ? undefined : { y: -6 }}
+      transition={{ type: "spring", stiffness: 320, damping: 26 }}
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
       <motion.span
-        className="absolute left-4 top-4 font-display text-4xl font-bold text-primary/30 md:left-1/2 md:top-0 md:-translate-x-1/2 md:text-5xl"
+        className="font-display text-5xl font-bold text-glow text-primary/40"
         initial={reduceMotion ? false : { opacity: 0, scale: 0.5 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
@@ -28,8 +30,8 @@ export function StepCard({
       >
         {step}
       </motion.span>
-      <h3 className="pl-12 font-semibold md:mt-2 md:pl-0">{title}</h3>
-      <p className="mt-2 pl-12 text-sm text-muted-foreground md:pl-0">{text}</p>
+      <h3 className="mt-4 font-display text-lg font-semibold">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-white/60">{text}</p>
     </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DirectoryClient } from "@/components/directory/directory-client";
-import { PageHeader } from "@/components/layout/page-header";
+import { ImmersivePageHero } from "@/components/layout/immersive-page-hero";
 import { SectionShell } from "@/components/layout/section";
 import { buildPageMetadata } from "@/lib/seo/build-metadata";
 import { getDirectoryFilterOptions, getDirectoryToolsPage } from "@/lib/queries/directory";
@@ -25,23 +25,24 @@ export default async function DirectoryPage({ searchParams }: Props) {
   ]);
 
   return (
-    <SectionShell className="py-12 md:py-16">
-      <PageHeader
-        variant="marketing"
-        eyebrow="Directory"
-        title="Find the right AI tool with buyer-grade proof"
-        description="Live search, advanced filters, pricing segments, verification status, and ranking signals tuned for serious software evaluation."
-        className="mb-8"
-      />
-      <DirectoryClient
-        initialQuery={query}
-        initialData={{
-          tools: initialPage.tools,
-          total: initialPage.total,
-          hasMore: initialPage.hasMore,
-          filters
-        }}
-      />
-    </SectionShell>
+    <div className="dark landing-root min-h-screen overflow-x-hidden">
+      <SectionShell className="py-10 md:py-14">
+        <ImmersivePageHero
+          eyebrow="Directory"
+          title="Find the right AI tool with"
+          accent="buyer-grade proof"
+          description="Live search, advanced filters, pricing segments, verification status, and ranking signals tuned for serious software evaluation."
+        />
+        <DirectoryClient
+          initialQuery={query}
+          initialData={{
+            tools: initialPage.tools,
+            total: initialPage.total,
+            hasMore: initialPage.hasMore,
+            filters
+          }}
+        />
+      </SectionShell>
+    </div>
   );
 }
