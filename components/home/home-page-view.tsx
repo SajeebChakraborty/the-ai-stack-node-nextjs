@@ -1,201 +1,676 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ArrowRight, Award, Compass, GraduationCap } from "lucide-react";
 import type { HomePageData } from "@/lib/content/home-static";
-import { HomeHero } from "@/components/home/home-hero";
-import { CourseShowcaseCard } from "@/components/home/course-showcase-card";
-import { ToolSpotlightCard } from "@/components/home/tool-spotlight-card";
-import { ToolMarquee } from "@/components/home/tool-marquee";
-import { MembershipCta } from "@/components/home/membership-cta";
-import { ReviewQuoteCard } from "@/components/home/review-quote-card";
-import { ScrollReveal, SectionHeader, StaggerItem, StaggerReveal } from "@/components/home/scroll-reveal";
-import { StepCard } from "@/components/home/step-card";
-import { ValuePropCard } from "@/components/home/value-prop-card";
-import { homeFaqItems } from "@/lib/content/home-faq";
-import { homeSteps, homeValueProps } from "@/lib/content/home-copy";
-import { Section, SectionShell } from "@/components/layout/section";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export type { HomePageData };
 
+/* ─── Particle canvas ─── */
+function ParticleCanvas({ count = 90 }: { count?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    type P = { x:number; y:number; z:number; vx:number; vy:number; vz:number; r:number; hue:number };
+    const hues = [195, 260, 155, 220, 280];
+    const pts: P[] = Array.from({ length: count }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      z: Math.random() * 800,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: (Math.random() - 0.5) * 0.22,
+      vz: Math.random() * 0.6 + 0.2,
+      r: Math.random() * 2.2 + 0.4,
+      hue: hues[Math.floor(Math.random() * hues.length)]
+    }));
+
+    let raf: number;
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      pts.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.z = (p.z + p.vz) % 800;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        const s   = 800 / (800 + p.z);
+        const sx  = cx + (p.x - cx) * s;
+        const sy  = cy + (p.y - cy) * s;
+        const sr  = Math.max(0.1, p.r * s);
+        const a   = Math.min(1, s * 0.85);
+        ctx.save();
+        ctx.shadowColor = `hsl(${p.hue},100%,70%)`;
+        ctx.shadowBlur  = 10 * s;
+        ctx.fillStyle   = `hsla(${p.hue},100%,75%,${a})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+  }, [count]);
+  return <canvas ref={ref} style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none", zIndex:1 }} />;
+}
+
+/* ─── 3-D mouse-tilt hook (preserves base rotateX/Y via additive offset) ─── */
+function useTilt(intensity = 5, baseX = 8, baseY = 12) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onMove = useCallback((e: MouseEvent) => {
+    const el = ref.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width  - 0.5;
+    const y = (e.clientY - r.top)  / r.height - 0.5;
+    el.style.transition = "transform 0.08s ease";
+    el.style.transform  = `rotateX(${baseX + -y * intensity}deg) rotateY(${baseY + x * intensity}deg)`;
+  }, [intensity, baseX, baseY]);
+  const onLeave = useCallback(() => {
+    const el = ref.current; if (!el) return;
+    el.style.transition = "transform 0.9s cubic-bezier(0.23,1,0.32,1)";
+    el.style.transform  = `rotateX(${baseX}deg) rotateY(${baseY}deg)`;
+  }, [baseX, baseY]);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => { el.removeEventListener("mousemove", onMove); el.removeEventListener("mouseleave", onLeave); };
+  }, [onMove, onLeave]);
+  return ref;
+}
+
+/* ─── Single-card 3-D tilt ─── */
+function TiltCard({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
+  const ref = useTilt(8);
+  return <div ref={ref} className={className} style={{ ...style, transformStyle: "preserve-3d", willChange: "transform" }}>{children}</div>;
+}
+
+/* ─── Intersection observer reveal ─── */
+function RevealSection({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { el.style.animationDelay = `${delay}s`; el.classList.add("section-reveal"); obs.disconnect(); }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [delay]);
+  return <div ref={ref} style={{ opacity: 0, ...style }}>{children}</div>;
+}
+
+const filterTabs = ["All","Context Engineering","Agents","Cursor","Claude","Tutorials","Opinions"];
+
 export function HomePageView({ data }: { data: HomePageData }) {
-  const heroStats = [
-    { value: `${data.stats.toolCount.toLocaleString()}+`, label: "AI tools indexed" },
-    { value: `${Math.max(data.stats.courseCount, 1)}+`, label: "video courses" },
-    { value: "4.8★", label: "avg. course rating" }
-  ];
-
-  const [leadCourse, ...gridCourses] = data.featuredCourses;
-  const [leadTool, ...otherTools] = data.trendingTools;
-
-  const marqueeItems = [
-    ...data.trendingTools.map((tool) => tool.name),
-    "AI Agents",
-    "Automation",
-    "Generative AI",
-    "Analytics",
-    "Creative",
-    "Productivity"
-  ];
-
-  const valuePropIcons = [GraduationCap, Compass, Award];
+  const [activeTab, setActiveTab] = useState("All");
+  const panelRef = useTilt(10);
 
   return (
-    <div className="dark landing-root overflow-x-hidden">
-      <HomeHero stats={heroStats} spotlightCourse={data.spotlightCourse ?? leadCourse ?? null} />
+    <div style={{ fontFamily:"'Inter',sans-serif", background:"#060918", color:"#fff", overflowX:"hidden" }}>
 
-      <ToolMarquee items={marqueeItems} />
+      {/* ══════════════════════════════
+          HERO
+      ══════════════════════════════ */}
+      {/* Hero – outer has NO overflow:hidden so 3D panel is never clipped */}
+      <section style={{ position:"relative", minHeight:"600px" }}>
 
-      <section className="border-b border-white/10 bg-white/[0.02] py-10 sm:py-12">
-        <SectionShell>
-          <StaggerReveal className="grid gap-6 md:grid-cols-3">
-            {homeValueProps.map((item, index) => (
-              <StaggerItem key={item.title}>
-                <ValuePropCard
-                  title={item.title}
-                  description={item.description}
-                  icon={valuePropIcons[index]}
-                  index={index}
-                />
-              </StaggerItem>
-            ))}
-          </StaggerReveal>
-        </SectionShell>
+        {/* Background layer – self-contained overflow:hidden so blobs/particles don't cause scroll */}
+        <div aria-hidden style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none", zIndex:0 }}>
+          <video autoPlay loop muted playsInline
+            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", opacity:0.13 }}>
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-dark-technological-background-with-gradient-4895-large.mp4" type="video/mp4" />
+          </video>
+          <ParticleCanvas count={100} />
+          <div className="aurora-blob-1" style={{ position:"absolute", top:"-120px", left:"-80px", width:"600px", height:"600px", borderRadius:"50%", background:"radial-gradient(circle,rgba(100,60,255,.22),transparent 65%)" }} />
+          <div className="aurora-blob-2" style={{ position:"absolute", top:"80px", right:"-100px", width:"500px", height:"500px", borderRadius:"50%", background:"radial-gradient(circle,rgba(0,180,255,.18),transparent 65%)" }} />
+          <div className="aurora-blob-3" style={{ position:"absolute", bottom:"-80px", left:"40%", width:"400px", height:"400px", borderRadius:"50%", background:"radial-gradient(circle,rgba(120,0,255,.15),transparent 65%)" }} />
+          <div className="scan-line" style={{ position:"absolute", left:0, right:0, height:"2px", background:"linear-gradient(90deg,transparent,rgba(0,212,255,.4),transparent)" }} />
+          <div style={{ position:"absolute", inset:0, backgroundImage:"radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px)", backgroundSize:"30px 30px" }} />
+        </div>
+
+        {/* Content grid – z above background, overflow visible so panel renders fully */}
+        <div style={{ position:"relative", zIndex:1, display:"grid", gridTemplateColumns:"1fr 1fr", gap:"56px", alignItems:"center", padding:"80px 60px" }}>
+
+          {/* Left */}
+          <div>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:"8px", padding:"6px 14px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:"40px", fontSize:"12px", fontWeight:600, color:"rgba(255,255,255,0.7)", marginBottom:"22px", letterSpacing:".5px" }}>
+              <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:"#00d4ff", display:"inline-block", boxShadow:"0 0 8px #00d4ff" }} />
+              The Intelligence Layer for AI Builders
+            </div>
+            <h1 style={{ fontSize:"58px", lineHeight:1.06, fontWeight:900, letterSpacing:"-2px", margin:"0 0 18px" }}>
+              Build AI Systems<br />
+              <span className="gradient-flow" style={{
+                background:"linear-gradient(90deg,#8b5cf6,#00d4ff,#00c896,#8b5cf6)",
+                WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text",
+                backgroundSize:"200% 200%"
+              }}>
+                That Actually Work
+              </span>
+            </h1>
+            <p style={{ fontSize:"16px", color:"rgba(255,255,255,0.56)", lineHeight:1.7, maxWidth:"420px", margin:"0 0 32px" }}>
+              Weekly insights, workflows, and systems for building production-grade AI — from MCP architecture to agent orchestration.
+            </p>
+            <div style={{ display:"flex", gap:"14px", marginBottom:"26px", flexWrap:"wrap" }}>
+              <Link href="/directory" className="neon-border" style={{
+                display:"inline-flex", alignItems:"center", gap:"8px", padding:"13px 28px",
+                background:"linear-gradient(135deg,rgba(0,180,216,.9),rgba(0,100,200,.9))",
+                borderRadius:"10px", color:"#fff", fontSize:"15px", fontWeight:700, textDecoration:"none",
+                boxShadow:"0 6px 28px rgba(0,130,255,.45)", transition:"transform .2s,box-shadow .2s"
+              }}
+                onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.transform="translateY(-3px) scale(1.03)"; el.style.boxShadow="0 12px 40px rgba(0,180,255,.6)"; }}
+                onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.transform=""; el.style.boxShadow="0 6px 28px rgba(0,130,255,.45)"; }}
+              >
+                Read Latest Issue →
+              </Link>
+              <Link href="/pricing" style={{
+                display:"inline-flex", alignItems:"center", padding:"13px 28px",
+                background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.2)",
+                borderRadius:"10px", color:"#fff", fontSize:"15px", fontWeight:500, textDecoration:"none",
+                backdropFilter:"blur(8px)", transition:"background .2s,transform .2s"
+              }}
+                onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.14)"; el.style.transform="translateY(-2px)"; }}
+                onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.07)"; el.style.transform=""; }}
+              >
+                Join Newsletter
+              </Link>
+            </div>
+            {/* Trust badges */}
+            <div style={{ display:"flex", gap:"20px", flexWrap:"wrap" }}>
+              {[
+                { icon:"📅", text:"Weekly drops" },
+                { icon:"✓",  text:"Zero spam" },
+                { icon:"👤", text:"Built for engineers" },
+                { icon:"⭐", text:"4.9 rated" }
+              ].map(({ icon, text }) => (
+                <div key={text} style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"12px", color:"rgba(255,255,255,0.48)" }}>
+                  <div style={{ width:"20px", height:"20px", borderRadius:"50%", background:"rgba(255,255,255,0.07)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"10px" }}>{icon}</div>
+                  {text}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right – whole panel tilted as one unit */}
+          <div style={{ perspective:"1200px", perspectiveOrigin:"48% 52%", height:"440px" }}>
+            <div
+              ref={panelRef}
+              style={{
+                position:"relative", height:"100%",
+                transform:"rotateX(8deg) rotateY(12deg)",
+                transformStyle:"preserve-3d",
+                willChange:"transform",
+                transition:"transform 0.08s ease"
+              }}
+            >
+              {/* ── Background chrome (overflow:hidden) – planet, stars, rings ── */}
+              <div style={{
+                position:"absolute", inset:0, borderRadius:"20px",
+                background:"linear-gradient(160deg,#080e28 0%,#050918 60%,#030710 100%)",
+                border:"1px solid rgba(60,100,255,0.22)",
+                overflow:"hidden",
+                boxShadow:"0 28px 70px rgba(0,0,0,.8), 8px 16px 50px rgba(0,0,0,.5)"
+              }}>
+                <div className="star-dots-anim" aria-hidden style={{
+                  position:"absolute", inset:0, pointerEvents:"none",
+                  backgroundImage:"radial-gradient(rgba(255,255,255,0.55) 1px,transparent 1px),radial-gradient(rgba(255,255,255,0.25) 1px,transparent 1px)",
+                  backgroundSize:"36px 36px,72px 72px", backgroundPosition:"0 0,18px 18px"
+                }} />
+                <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:1, width:"290px", height:"290px" }}>
+                  <div className="ring-orbit-1" style={{ position:"absolute", inset:"-18%", borderRadius:"50%", border:"1px solid rgba(80,150,255,.14)", boxShadow:"0 0 40px rgba(60,130,255,.15)" }} />
+                  <div className="ring-orbit-2" style={{ position:"absolute", inset:"-34%", borderRadius:"50%", border:"1px solid rgba(100,160,255,.1)" }} />
+                  <div className="ring-orbit-3" style={{ position:"absolute", inset:"-10%", borderRadius:"50%", border:"1px dashed rgba(0,200,255,.14)" }} />
+                  <div className="planet-glow-anim" style={{
+                    width:"100%", height:"100%", borderRadius:"50%",
+                    background:"radial-gradient(circle at 35% 30%,#6aacff 0%,#3070e8 20%,#1040c0 42%,#060e38 68%,transparent 100%)",
+                    boxShadow:"0 0 40px rgba(60,130,255,1),0 0 80px rgba(50,110,255,.9),0 0 140px rgba(40,90,255,.65),0 0 220px rgba(30,70,240,.38),0 0 320px rgba(20,55,220,.2)",
+                    position:"relative", overflow:"hidden"
+                  }}>
+                    <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"repeating-linear-gradient(0deg,transparent 0px,transparent 13px,rgba(140,200,255,.11) 13px,rgba(140,200,255,.11) 14px),repeating-linear-gradient(90deg,transparent 0px,transparent 21px,rgba(110,170,255,.07) 21px,rgba(110,170,255,.07) 22px)" }} />
+                    <div style={{ position:"absolute", top:"9%", left:"11%", width:"40%", height:"30%", borderRadius:"50%", background:"rgba(210,235,255,.22)", filter:"blur(9px)" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Cards: sibling of chrome, NOT inside overflow:hidden ── */}
+              <div style={{ position:"absolute", inset:"16px", zIndex:2, display:"grid", gridTemplateColumns:"1fr 1fr", gridTemplateRows:"1fr 1fr", gap:"14px" }}>
+                {[
+                  { cls:"hcard-anim hcard-anim-1", bg:"rgba(0,180,255,.2)", sh:"rgba(0,180,255,.15)", accent:"#00d4ff",
+                    title:"Context Engineering", desc:"Design better context. Build reliable systems.",
+                    icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="5.6" y1="5.6" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="18.4" y2="18.4"/><line x1="5.6" y1="18.4" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="18.4" y2="5.6"/></svg> },
+                  { cls:"hcard-anim hcard-anim-2", bg:"rgba(0,220,120,.18)", sh:"rgba(0,220,120,.12)", accent:"#00dc78",
+                    title:"MCP Architecture", desc:"Connect models to tools with MCP servers.",
+                    icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00dc78" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg> },
+                  { cls:"hcard-anim hcard-anim-3", bg:"rgba(160,90,255,.2)", sh:"rgba(160,90,255,.15)", accent:"#b482ff",
+                    title:"Agent Workflows", desc:"Orchestrate agents. Automate real work.",
+                    icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b482ff" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="7" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg> },
+                  { cls:"hcard-anim hcard-anim-4", bg:"rgba(80,100,255,.2)", sh:"rgba(80,100,255,.15)", accent:"#6496ff",
+                    title:"Tool Benchmarks", desc:"Real benchmarks. No marketing hype.",
+                    icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6496ff" strokeWidth="2" strokeLinecap="round"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="16" y="4" width="4" height="16" rx="1"/><line x1="2" y1="21" x2="22" y2="21"/></svg> }
+                ].map(({ cls, bg, sh, accent, title, desc, icon }) => (
+                  <div
+                    key={title}
+                    className={cls}
+                    style={{
+                      background:"rgba(6,12,42,0.6)",
+                      border:"1px solid rgba(90,130,255,0.22)",
+                      borderRadius:"14px", padding:"18px",
+                      backdropFilter:"blur(14px)",
+                      transition:"transform .3s, box-shadow .3s, border-color .3s",
+                      cursor:"pointer", position:"relative", overflow:"hidden"
+                    }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.transform = "translateY(-5px)";
+                      el.style.boxShadow = "0 16px 40px rgba(0,0,0,.7)";
+                      el.style.borderColor = "rgba(110,160,255,0.42)";
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLDivElement;
+                      el.style.transform = "";
+                      el.style.boxShadow = "";
+                      el.style.borderColor = "rgba(90,130,255,0.22)";
+                    }}
+                  >
+                    <div aria-hidden style={{ position:"absolute", top:0, left:"15%", right:"15%", height:"1px", background:`linear-gradient(90deg,transparent,${accent}55,transparent)`, pointerEvents:"none" }} />
+                    <div className="hcard-icon-pulse" style={{ width:"38px", height:"38px", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"12px", background:bg, boxShadow:`0 0 10px ${sh}` }}>
+                      {icon}
+                    </div>
+                    <h4 style={{ fontSize:"12.5px", fontWeight:700, marginBottom:"5px", letterSpacing:"-.1px" }}>{title}</h4>
+                    <p style={{ fontSize:"11px", color:"rgba(255,255,255,0.52)", lineHeight:1.55, margin:0 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <Section>
-        <SectionShell>
-          <SectionHeader
-            eyebrow={
-              <Badge variant="outline" className="border-primary/30 text-primary">
-                Academy
-              </Badge>
-            }
-            title="Learn AI with video-first courses"
-            description="Watch lessons, track progress, and earn certificates—built for founders and builders who learn by doing."
-            action={
-              <Button asChild variant="outline">
-                <Link href="/courses">
-                  All courses
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            }
-          />
-
-          <StaggerReveal className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5" delayChildren={0.08}>
-            {leadCourse ? (
-              <StaggerItem className="sm:col-span-2 lg:col-span-2">
-                <CourseShowcaseCard course={leadCourse} featured className="sm:col-span-2 lg:col-span-2" />
-              </StaggerItem>
-            ) : null}
-            {gridCourses.slice(0, leadCourse ? 4 : 6).map((course) => (
-              <StaggerItem key={course.id}>
-                <CourseShowcaseCard course={course} />
-              </StaggerItem>
-            ))}
-          </StaggerReveal>
-        </SectionShell>
-      </Section>
-
-      <Section className="border-y border-white/10 bg-white/[0.02]">
-        <SectionShell>
-          <SectionHeader
-            direction="right"
-            eyebrow={<Badge variant="outline" className="border-primary/30 text-primary">Directory</Badge>}
-            title="Trending tools with video previews"
-            description="See what's rising in the market—ranked by trust, reviews, and growth signals."
-            action={
-              <Button asChild variant="outline">
-                <Link href="/directory">
-                  Browse directory
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            }
-          />
-
-          {leadTool ? (
-            <StaggerReveal className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2" delayChildren={0.1}>
-              <StaggerItem className="lg:col-span-2 lg:row-span-2">
-                <ToolSpotlightCard tool={leadTool} rank={1} large className="lg:col-span-2 lg:row-span-2" />
-              </StaggerItem>
-              {otherTools.slice(0, 4).map((tool, index) => (
-                <StaggerItem key={tool.id}>
-                  <ToolSpotlightCard tool={tool} rank={index + 2} />
-                </StaggerItem>
+      {/* ══════════════════════════════
+          LATEST INTELLIGENCE
+      ══════════════════════════════ */}
+      <section style={{ padding:"16px 60px 60px", position:"relative" }}>
+        <RevealSection>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"28px" }}>
+            <span style={{ fontSize:"11px", fontWeight:700, letterSpacing:"2.5px", color:"rgba(255,255,255,0.4)", textTransform:"uppercase" }}>Latest Intelligence</span>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <Link href="/directory" style={{ fontSize:"13px", color:"rgba(255,255,255,0.55)", textDecoration:"none", transition:"color .2s" }}>View all articles →</Link>
+              {["←","→"].map(a => (
+                <div key={a} style={{ width:"32px", height:"32px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:"13px", transition:"background .2s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background="rgba(255,255,255,0.12)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background="rgba(255,255,255,0.05)"; }}
+                >{a}</div>
               ))}
-            </StaggerReveal>
-          ) : null}
-        </SectionShell>
-      </Section>
-
-      <Section>
-        <SectionShell>
-          <SectionHeader align="center" title="How TheAiStack works" />
-          <StaggerReveal className="mt-10 grid gap-6 md:grid-cols-3">
-            {homeSteps.map((step) => (
-              <StaggerItem key={step.step}>
-                <StepCard step={step.step} title={step.title} text={step.text} />
-              </StaggerItem>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"16px" }}>
+            {[
+              { img:"https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1600&q=90", badge:"Context Engineering", bc:"rgba(80,200,255,.15)", bco:"#50c8ff", title:"Context Engineering is Replacing Prompt Engineering", date:"May 16, 2024 · 6 min" },
+              { img:"https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=1600&q=90",  badge:"Agents", bc:"rgba(180,130,255,.15)", bco:"#b482ff", title:"Why Most AI Agents Fail in Production Systems", date:"May 14, 2024 · 9 min" },
+              { img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=90",  badge:"MCP", bc:"rgba(0,200,150,.15)", bco:"#00c896", title:"From Figma to Production: MCP Stack Workflow", date:"May 18, 2024 · 8 min" },
+              { img:"https://images.unsplash.com/photo-1655720031554-a929595ffad7?w=1600&q=90", badge:"Cursor", bc:"rgba(255,200,80,.15)", bco:"#ffc850", title:"Cursor + Claude 3.5 + MCP: The Ultimate Dev Stack?", date:"May 12, 2024 · 7 min" }
+            ].map(({ img, badge, bc, bco, title, date }, i) => (
+              <RevealSection key={title} delay={i * 0.08}>
+                <TiltCard style={{ background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px", overflow:"hidden", cursor:"pointer", transition:"border-color .3s,box-shadow .3s", height:"100%" }}>
+                  <div style={{ height:"140px", position:"relative", overflow:"hidden" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"brightness(.5) saturate(1.2)", transition:"transform .5s,filter .5s" }}
+                      onMouseEnter={e => { const el=e.currentTarget as HTMLImageElement; el.style.transform="scale(1.08)"; el.style.filter="brightness(.7) saturate(1.3)"; }}
+                      onMouseLeave={e => { const el=e.currentTarget as HTMLImageElement; el.style.transform=""; el.style.filter="brightness(.5) saturate(1.2)"; }}
+                    />
+                    <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg,transparent 25%,rgba(4,8,28,.9) 100%)" }} />
+                  </div>
+                  <div style={{ padding:"16px" }}>
+                    <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:"20px", fontSize:"10px", fontWeight:700, textTransform:"uppercase", letterSpacing:".6px", marginBottom:"10px", background:bc, color:bco }}>{badge}</span>
+                    <h4 style={{ fontSize:"13.5px", fontWeight:700, lineHeight:1.4, marginBottom:"12px" }}>{title}</h4>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ fontSize:"11px", color:"rgba(255,255,255,0.36)" }}>{date}</span>
+                      <span style={{ fontSize:"16px", color:"rgba(255,255,255,0.3)", transition:"color .2s" }}>→</span>
+                    </div>
+                  </div>
+                </TiltCard>
+              </RevealSection>
             ))}
-          </StaggerReveal>
-        </SectionShell>
-      </Section>
+          </div>
+        </RevealSection>
+      </section>
 
-      {data.recentReviews.length > 0 ? (
-        <Section className="bg-gradient-to-b from-white/[0.04] to-transparent">
-          <SectionShell>
-            <SectionHeader title="Trusted by real buyers" />
-            <StaggerReveal className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {data.recentReviews.map((review) => (
-                <StaggerItem key={review.id}>
-                  <ReviewQuoteCard
-                    title={review.title}
-                    body={review.body}
-                    authorName={review.authorName}
-                    toolName={review.toolName}
-                    toolSlug={review.toolSlug}
+      {/* ══════════════════════════════
+          FEATURED DEEP-DIVE BANNER
+      ══════════════════════════════ */}
+      <div style={{ padding:"40px 60px 64px" }}>
+        <div style={{
+          position:"relative", borderRadius:"24px",
+          border:"1px solid rgba(255,255,255,0.08)",
+          minHeight:"340px", display:"flex", alignItems:"center",
+          background:"linear-gradient(135deg,#070d24 0%,#0b1240 30%,#06091a 60%,#0a0e28 100%)",
+          overflow:"visible"
+        }}>
+          {/* CSS animated background – always renders regardless of network */}
+          <div aria-hidden style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
+            <div className="aurora-blob-1" style={{ position:"absolute", top:"-60px", right:"20%", width:"380px", height:"380px", borderRadius:"50%", background:"radial-gradient(circle,rgba(60,40,200,.28),transparent 65%)" }} />
+            <div className="aurora-blob-2" style={{ position:"absolute", bottom:"-80px", right:"-60px", width:"320px", height:"320px", borderRadius:"50%", background:"radial-gradient(circle,rgba(0,150,255,.22),transparent 65%)" }} />
+            <div className="aurora-blob-3" style={{ position:"absolute", top:"20%", right:"38%", width:"200px", height:"200px", borderRadius:"50%", background:"radial-gradient(circle,rgba(100,60,255,.18),transparent 65%)" }} />
+            <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px)", backgroundSize:"28px 28px" }} />
+          </div>
+          {/* Content */}
+          <div style={{ position:"relative", zIndex:2, padding:"52px 60px", maxWidth:"560px" }}>
+            <div style={{ display:"inline-block", padding:"4px 12px", background:"rgba(0,212,255,.15)", border:"1px solid rgba(0,212,255,.3)", borderRadius:"20px", fontSize:"11px", fontWeight:700, color:"#00d4ff", letterSpacing:"1.5px", textTransform:"uppercase", marginBottom:"20px" }}>Featured Deep-Dive</div>
+            <h2 style={{ fontSize:"34px", fontWeight:800, lineHeight:1.2, marginBottom:"16px", letterSpacing:"-.5px" }}>
+              How Production AI<br />Systems Are Built
+            </h2>
+            <p style={{ fontSize:"15px", color:"rgba(255,255,255,0.6)", lineHeight:1.7, marginBottom:"30px" }}>
+              A full walkthrough of the architecture, tooling, and workflows that power reliable AI at scale — from context design to deployment.
+            </p>
+            <Link href="/directory" style={{
+              display:"inline-flex", alignItems:"center", gap:"10px", padding:"13px 26px",
+              background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.22)",
+              borderRadius:"10px", color:"#fff", fontSize:"14px", fontWeight:600, textDecoration:"none",
+              backdropFilter:"blur(12px)", transition:"background .2s,transform .2s"
+            }}
+              onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.18)"; el.style.transform="translateX(4px)"; }}
+              onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.1)"; el.style.transform=""; }}
+            >
+              ▶ Read the breakdown
+            </Link>
+          </div>
+          {/* Right decorative grid visual */}
+          <div aria-hidden style={{ position:"absolute", right:"48px", top:"50%", transform:"translateY(-50%)", zIndex:2, display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", opacity:0.55 }}>
+            {["Context","Agents","MCP","Tools"].map(label => (
+              <div key={label} style={{ width:"110px", height:"70px", borderRadius:"12px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"11px", fontWeight:600, color:"rgba(255,255,255,0.55)" }}>{label}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════
+          STOP VIBE CODING
+      ══════════════════════════════ */}
+      <section style={{ padding:"72px 60px", borderTop:"1px solid rgba(255,255,255,0.05)", borderBottom:"1px solid rgba(255,255,255,0.05)", textAlign:"center", position:"relative" }}>
+        {/* background grid glow */}
+        <div aria-hidden style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:"800px", height:"800px", borderRadius:"50%", background:"radial-gradient(circle,rgba(80,40,255,.08) 0%,transparent 60%)", pointerEvents:"none" }} />
+        <RevealSection>
+          <h2 style={{ fontSize:"38px", fontWeight:900, letterSpacing:"-.8px", marginBottom:"14px" }}>
+            Stop Vibe Coding.{" "}
+            <span className="gradient-flow" style={{ background:"linear-gradient(90deg,#8b5cf6,#00d4ff,#00c896,#8b5cf6)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text", backgroundSize:"200% 200%" }}>
+              Start System Building.
+            </span>
+          </h2>
+          <p style={{ color:"rgba(255,255,255,0.5)", fontSize:"16px", marginBottom:"48px", maxWidth:"580px", margin:"0 auto 48px" }}>
+            We break down the systems, tools, and workflows behind production-grade AI applications.
+          </p>
+        </RevealSection>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"22px", textAlign:"left" }}>
+          {[
+            { bg:"rgba(0,200,220,.13)", title:"Context Engineering", delay:0,
+              icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c8dc" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/></svg>,
+              items:["Design structured context windows","Reduce hallucination risk","Improve agent reliability","Build repeatable AI systems"] },
+            { bg:"rgba(130,80,255,.13)", title:"AI Tool Intelligence", delay:0.1,
+              icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8250ff" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+              items:["Cursor, Claude, Gemini comparisons","Real benchmarks, no hype","Deep dives into model behavior","Find the right tool for the job"] },
+            { bg:"rgba(0,200,220,.13)", title:"Production AI Systems", delay:0.2,
+              icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c8dc" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+              items:["MCP servers and toolchains","Agent orchestration patterns","Deployment & observability","Real-world production case studies"] }
+          ].map(({ bg, title, delay, icon, items }) => (
+            <RevealSection key={title} delay={delay}>
+              <TiltCard style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"20px", padding:"28px", height:"100%" }}>
+                <div className="float3d-1" style={{ width:"46px", height:"46px", borderRadius:"13px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"18px", background:bg }}>{icon}</div>
+                <h3 style={{ fontSize:"16px", fontWeight:700, marginBottom:"16px" }}>{title}</h3>
+                <ul style={{ listStyle:"none", display:"flex", flexDirection:"column", gap:"10px", padding:0, margin:0 }}>
+                  {items.map(item => (
+                    <li key={item} style={{ fontSize:"13px", color:"rgba(255,255,255,0.58)", display:"flex", alignItems:"flex-start", gap:"9px", lineHeight:1.4 }}>
+                      <span style={{ color:"rgba(0,200,220,.8)", flexShrink:0 }}>▸</span>{item}
+                    </li>
+                  ))}
+                </ul>
+              </TiltCard>
+            </RevealSection>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════
+          LATEST ARTICLES
+      ══════════════════════════════ */}
+      <section style={{ padding:"64px 60px" }}>
+        <RevealSection>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"24px" }}>
+            <span style={{ fontSize:"11px", fontWeight:700, letterSpacing:"2.5px", color:"rgba(255,255,255,0.4)", textTransform:"uppercase" }}>Latest Articles</span>
+          </div>
+          <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", marginBottom:"30px" }}>
+            {filterTabs.map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+                padding:"7px 16px", borderRadius:"20px", fontSize:"13px", cursor:"pointer", transition:"all .2s",
+                border:`1px solid ${activeTab===tab ? "rgba(0,212,255,0.4)" : "rgba(255,255,255,0.1)"}`,
+                background: activeTab===tab ? "rgba(0,212,255,0.12)" : "transparent",
+                color: activeTab===tab ? "#00d4ff" : "rgba(255,255,255,0.6)", fontFamily:"inherit"
+              }}>{tab}</button>
+            ))}
+          </div>
+        </RevealSection>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:"18px", marginBottom:"34px" }}>
+          {[
+            { img:"https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&q=90", badge:"Context Engineering", bc:"rgba(80,200,255,.15)", bco:"#50c8ff", title:"The Context Engineering Playbook", desc:"A practical guide to designing, testing, and evolving context that drives reliable AI outputs.", date:"May 17, 2024 · 10 min", initials:"AK", author:"Aman K." },
+            { img:"https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=1200&q=90",  badge:"Claude", bc:"rgba(255,130,80,.15)", bco:"#ff8250", title:"Claude 3.5 vs GPT-4o vs Gemini 1.5: Deep Benchmark", desc:"A deep benchmark across coding, reasoning, and tool use. Surprising results inside.", date:"May 15, 2024 · 12 min", initials:"AK", author:"Aman K." },
+            { img:"https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1200&q=90", badge:"Tutorial", bc:"rgba(80,200,100,.15)", bco:"#50c864", title:"Build an AI Agent with MCP in 20 Minutes", desc:"Step-by-step tutorial to build your first agent connected to real-world tools.", date:"May 13, 2024 · 8 min", initials:"AK", author:"Aman K." },
+            { img:"https://images.unsplash.com/photo-1655720031554-a929595ffad7?w=1200&q=90", badge:"Agents", bc:"rgba(180,130,255,.15)", bco:"#b482ff", title:"Multi-Agent Orchestration Patterns That Scale", desc:"Learn proven patterns for planning, routing, and coordinating multi-agent AI systems.", date:"May 11, 2024 · 11 min", initials:"AK", author:"Aman K." }
+          ].map(({ img, badge, bc, bco, title, desc, date, author, initials }, i) => (
+            <RevealSection key={title} delay={i * 0.06}>
+              <TiltCard style={{ display:"flex", gap:"16px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px", overflow:"hidden", padding:"16px", cursor:"pointer", transition:"border-color .3s,box-shadow .3s" }}>
+                <div style={{ width:"124px", height:"96px", borderRadius:"11px", overflow:"hidden", flexShrink:0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"brightness(.65) saturate(1.1)", transition:"transform .45s,filter .45s" }}
+                    onMouseEnter={e => { const el=e.currentTarget as HTMLImageElement; el.style.transform="scale(1.08)"; el.style.filter="brightness(.8) saturate(1.3)"; }}
+                    onMouseLeave={e => { const el=e.currentTarget as HTMLImageElement; el.style.transform=""; el.style.filter="brightness(.65) saturate(1.1)"; }}
                   />
-                </StaggerItem>
-              ))}
-            </StaggerReveal>
-          </SectionShell>
-        </Section>
-      ) : null}
+                </div>
+                <div style={{ flex:1 }}>
+                  <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:"20px", fontSize:"10px", fontWeight:700, textTransform:"uppercase", letterSpacing:".6px", marginBottom:"6px", background:bc, color:bco }}>{badge}</span>
+                  <h4 style={{ fontSize:"13.5px", fontWeight:700, lineHeight:1.4, marginBottom:"5px", marginTop:"2px" }}>{title}</h4>
+                  <p style={{ fontSize:"12px", color:"rgba(255,255,255,0.46)", lineHeight:1.55, marginBottom:"10px" }}>{desc}</p>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <span style={{ fontSize:"11px", color:"rgba(255,255,255,0.34)" }}>{date}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"11px", color:"rgba(255,255,255,0.46)" }}>
+                      <div style={{ width:"22px", height:"22px", borderRadius:"50%", background:"linear-gradient(135deg,#7c5cff,#00d4ff)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"8px", fontWeight:700 }}>{initials}</div>
+                      {author}
+                    </div>
+                  </div>
+                </div>
+              </TiltCard>
+            </RevealSection>
+          ))}
+        </div>
+        <div style={{ textAlign:"center" }}>
+          <Link href="/directory" style={{ display:"inline-block", padding:"13px 32px", background:"transparent", border:"1px solid rgba(255,255,255,0.18)", borderRadius:"10px", color:"#fff", fontSize:"14px", fontWeight:500, textDecoration:"none", transition:"background .2s,border-color .2s,transform .2s" }}
+            onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.08)"; el.style.borderColor="rgba(255,255,255,0.3)"; el.style.transform="translateY(-2px)"; }}
+            onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="transparent"; el.style.borderColor="rgba(255,255,255,0.18)"; el.style.transform=""; }}
+          >View all articles →</Link>
+        </div>
+      </section>
 
-      {data.plans[0] ? (
-        <Section>
-          <SectionShell>
-            <ScrollReveal direction="scale">
-              <MembershipCta />
-            </ScrollReveal>
-          </SectionShell>
-        </Section>
-      ) : null}
+      {/* ══════════════════════════════
+          HOW AI SYSTEMS WORK
+      ══════════════════════════════ */}
+      <section style={{ padding:"70px 60px", borderTop:"1px solid rgba(255,255,255,0.05)", display:"grid", gridTemplateColumns:"300px 1fr", gap:"60px", alignItems:"center", position:"relative", overflow:"hidden" }}>
+        <div aria-hidden style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)", backgroundSize:"44px 44px", pointerEvents:"none" }} />
+        <RevealSection style={{ position:"relative", zIndex:1 }}>
+          <div style={{ display:"inline-block", padding:"4px 12px", background:"rgba(100,120,255,.15)", border:"1px solid rgba(100,120,255,.3)", borderRadius:"20px", fontSize:"11px", fontWeight:700, color:"#6496ff", letterSpacing:"1px", textTransform:"uppercase", marginBottom:"16px" }}>System Design</div>
+          <h2 style={{ fontSize:"24px", fontWeight:900, letterSpacing:"-.3px", color:"#fff", lineHeight:1.35, marginBottom:"14px" }}>HOW MODERN AI SYSTEMS<br />ACTUALLY WORK</h2>
+          <p style={{ fontSize:"14px", color:"rgba(255,255,255,0.5)", lineHeight:1.8, marginBottom:"26px" }}>AI systems are more than prompts. They are layered, observable, and continuously improving stacks.</p>
+          <Link href="/directory" style={{ display:"inline-flex", alignItems:"center", gap:"7px", padding:"12px 22px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.14)", borderRadius:"10px", color:"#fff", fontSize:"13px", fontWeight:500, textDecoration:"none", transition:"background .2s,transform .2s" }}
+            onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.12)"; el.style.transform="translateY(-2px)"; }}
+            onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.background="rgba(255,255,255,0.06)"; el.style.transform=""; }}
+          >Explore the full guide →</Link>
+        </RevealSection>
+        <RevealSection delay={0.1} style={{ position:"relative", zIndex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"20px", padding:"32px 24px" }}>
+            {[
+              { color:"rgba(90,70,255,.22)", border:"rgba(100,80,255,.4)", label:"Input", desc:"User request, data, or event", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8878ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/></svg> },
+              { color:"rgba(0,180,200,.2)", border:"rgba(0,190,210,.38)", label:"Context Layer", desc:"Retrieve, structure, enrich", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c8d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg> },
+              { color:"rgba(160,60,255,.22)", border:"rgba(170,70,255,.4)", label:"Agent Layer", desc:"Plan, reason, take actions", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c060ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2"/><path d="M2 20v-1a7 7 0 0 1 14 0v1"/><path d="M17 13a4 4 0 0 1 4 4v1"/></svg> },
+              { color:"rgba(210,40,220,.2)", border:"rgba(220,50,230,.38)", label:"MCP Tools", desc:"Use tools via MCP servers", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d040e0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> },
+              { color:"rgba(255,130,30,.2)", border:"rgba(255,140,40,.38)", label:"Output", desc:"Deliver response or action", icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff9030" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/><circle cx="12" cy="12" r="10"/></svg> }
+            ].map(({ color, border, label, desc, icon }, i, arr) => (
+              <div key={label} style={{ display:"flex", alignItems:"center", flex:1 }}>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", flex:1 }}>
+                  <div className="float3d-1" style={{ width:"56px", height:"56px", borderRadius:"15px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"12px", background:color, border:`1px solid ${border}`, transition:"transform .3s,box-shadow .3s", cursor:"default" }}
+                    onMouseEnter={e => { const el=e.currentTarget as HTMLDivElement; el.style.transform="scale(1.15) translateY(-4px)"; el.style.boxShadow=`0 14px 30px ${color}`; }}
+                    onMouseLeave={e => { const el=e.currentTarget as HTMLDivElement; el.style.transform=""; el.style.boxShadow=""; }}
+                  >{icon}</div>
+                  <h5 style={{ fontSize:"12px", fontWeight:700, marginBottom:"4px", color:"#fff" }}>{label}</h5>
+                  <p style={{ fontSize:"10px", color:"rgba(255,255,255,0.42)", lineHeight:1.4, maxWidth:"80px", margin:0 }}>{desc}</p>
+                </div>
+                {i < arr.length - 1 && (
+                  <div style={{ flexShrink:0, width:"40px", marginBottom:"34px" }}>
+                    <svg viewBox="0 0 40 12" fill="none" style={{ width:"100%", height:"12px" }}>
+                      <line x1="0" y1="6" x2="30" y2="6" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeDasharray="4 3"/>
+                      <polyline points="26,2 34,6 26,10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" fill="none"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </RevealSection>
+      </section>
 
-      <Section compact className="border-t border-white/10">
-        <SectionShell>
-          <SectionHeader title="Frequently asked questions" />
-          <StaggerReveal className="mt-6 w-full max-w-3xl" delayChildren={0.06}>
-            <Accordion type="single" collapsible className="w-full">
-              {homeFaqItems.map((item) => (
-                <StaggerItem key={item.id}>
-                  <AccordionItem value={item.id} className="transition-colors data-[state=open]:border-primary/30">
-                    <AccordionTrigger className="text-left transition-colors hover:text-primary">
-                      {item.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
-                  </AccordionItem>
-                </StaggerItem>
-              ))}
-            </Accordion>
-          </StaggerReveal>
-        </SectionShell>
-      </Section>
+      {/* ══════════════════════════════
+          BUILDER RESOURCES
+      ══════════════════════════════ */}
+      <section style={{ padding:"64px 60px", borderTop:"1px solid rgba(255,255,255,0.05)" }}>
+        <RevealSection>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"30px" }}>
+            <span style={{ fontSize:"11px", fontWeight:700, letterSpacing:"2.5px", color:"rgba(255,255,255,0.4)", textTransform:"uppercase" }}>Builder Resources</span>
+            <Link href="/directory" style={{ fontSize:"13px", color:"rgba(255,255,255,0.55)", textDecoration:"none" }}>View all resources →</Link>
+          </div>
+        </RevealSection>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"18px" }}>
+          {[
+            { bg:"rgba(255,100,50,.14)", co:"#ff6432", title:"MCP Server Directory", desc:"Discover and explore the best MCP servers for your production stack.", href:"/directory", delay:0, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6432" strokeWidth="1.8" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+            { bg:"rgba(0,200,100,.14)", co:"#00c864", title:"AI Agent Templates", desc:"Production-ready agent templates you can fork and ship today.", href:"/automations", delay:0.06, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c864" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12"/><path d="M12 6v6l4 2"/></svg> },
+            { bg:"rgba(60,100,255,.14)", co:"#5a78ff", title:"Cursor Prompt Packs", desc:"High-quality prompt packs to supercharge your daily productivity.", href:"/directory", delay:0.12, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5a78ff" strokeWidth="1.8" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> },
+            { bg:"rgba(255,180,50,.14)", co:"#ffb432", title:"Claude Code Workflows", desc:"Reusable agentic workflows for real Claude Code projects.", href:"/directory", delay:0.18, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb432" strokeWidth="1.8" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> },
+            { bg:"rgba(140,80,255,.14)", co:"#8c50ff", title:"Context Engineering Guide", desc:"Master the principles and practices that make AI reliable in production.", href:"/directory", delay:0.24, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8c50ff" strokeWidth="1.8" strokeLinecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> },
+            { bg:"rgba(200,200,200,.07)", co:"rgba(255,255,255,.6)", title:"GitHub Repos", desc:"Open-source tools and examples from the AI builder community.", href:"/directory", delay:0.30, icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,.75)"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg> }
+          ].map(({ bg, co, title, desc, href, delay, icon }) => (
+            <RevealSection key={title} delay={delay}>
+              <TiltCard>
+                <Link href={href} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px", padding:"24px", cursor:"pointer", transition:"border-color .3s,box-shadow .3s", textDecoration:"none", color:"inherit", display:"block", height:"100%" }}
+                  onMouseEnter={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.borderColor="rgba(255,255,255,0.18)"; el.style.boxShadow="0 16px 40px rgba(0,0,0,.5)"; }}
+                  onMouseLeave={e => { const el=e.currentTarget as HTMLAnchorElement; el.style.borderColor="rgba(255,255,255,0.07)"; el.style.boxShadow=""; }}
+                >
+                  <div style={{ width:"46px", height:"46px", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px", background:bg }}>{icon}</div>
+                  <h4 style={{ fontSize:"14px", fontWeight:700, marginBottom:"7px" }}>{title}</h4>
+                  <p style={{ fontSize:"12px", color:"rgba(255,255,255,0.48)", lineHeight:1.6, marginBottom:"18px" }}>{desc}</p>
+                  <span style={{ fontSize:"12px", color:co }}>Explore →</span>
+                </Link>
+              </TiltCard>
+            </RevealSection>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════
+          NEWSLETTER
+      ══════════════════════════════ */}
+      <RevealSection style={{ margin:"0 60px 70px", position:"relative" }}>
+        <div style={{ background:"linear-gradient(135deg,rgba(76,38,196,.5),rgba(38,18,120,.44))", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"24px", padding:"48px 52px", display:"grid", gridTemplateColumns:"1fr auto", gap:"40px", alignItems:"center", overflow:"hidden", position:"relative" }}>
+          {/* 3D glow orb */}
+          <div aria-hidden className="aurora-blob-1" style={{ position:"absolute", top:"-80px", right:"260px", width:"320px", height:"320px", borderRadius:"50%", background:"rgba(100,60,255,.2)", filter:"blur(70px)", pointerEvents:"none" }} />
+          <div aria-hidden className="aurora-blob-2" style={{ position:"absolute", bottom:"-60px", left:"40%", width:"240px", height:"240px", borderRadius:"50%", background:"rgba(0,180,255,.15)", filter:"blur(60px)", pointerEvents:"none" }} />
+          <div style={{ position:"relative" }}>
+            <div style={{ width:"48px", height:"48px", background:"rgba(255,255,255,0.12)", borderRadius:"14px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"18px", fontSize:"24px" }}>✉️</div>
+            <h2 style={{ fontSize:"24px", fontWeight:800, marginBottom:"9px", letterSpacing:"-.3px" }}>Get Weekly AI Engineering Intelligence</h2>
+            <p style={{ fontSize:"14px", color:"rgba(255,255,255,0.56)", lineHeight:1.65 }}>No fluff. Only systems, workflows, and production AI insights — delivered every week.</p>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:"14px", minWidth:"330px" }}>
+            <div style={{ display:"flex", gap:"10px" }}>
+              <input type="email" placeholder="Enter your email" style={{ flex:1, padding:"13px 16px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:"10px", color:"#fff", fontSize:"13px", outline:"none", fontFamily:"inherit", transition:"border-color .2s" }}
+                onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor="rgba(0,212,255,0.5)"; }}
+                onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor="rgba(255,255,255,0.2)"; }}
+              />
+              <button style={{ padding:"13px 22px", background:"linear-gradient(135deg,#7c5cff,#00d4ff)", border:"none", borderRadius:"10px", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"inherit", boxShadow:"0 6px 24px rgba(100,80,255,.45)", transition:"transform .2s,box-shadow .2s" }}
+                onMouseEnter={e => { const el=e.currentTarget as HTMLButtonElement; el.style.transform="translateY(-2px)"; el.style.boxShadow="0 10px 32px rgba(120,100,255,.6)"; }}
+                onMouseLeave={e => { const el=e.currentTarget as HTMLButtonElement; el.style.transform=""; el.style.boxShadow="0 6px 24px rgba(100,80,255,.45)"; }}
+              >Subscribe</button>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px", fontSize:"12px", color:"rgba(255,255,255,0.52)" }}>
+              <div style={{ display:"flex" }}>
+                {["11","22","33","44"].map((n,i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={n} src={`https://i.pravatar.cc/48?img=${n}`} alt="" style={{ width:"28px", height:"28px", borderRadius:"50%", border:"2px solid rgba(255,255,255,0.16)", marginLeft:i===0?0:"-9px", objectFit:"cover" }} />
+                ))}
+              </div>
+              Join 12,642+ engineers &amp; builders
+            </div>
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* ══════════════════════════════
+          TRUSTED BY + TESTIMONIALS
+      ══════════════════════════════ */}
+      <section style={{ padding:"64px 60px", borderTop:"1px solid rgba(255,255,255,0.05)", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"80px" }}>
+        <RevealSection>
+          <div style={{ fontSize:"11px", fontWeight:700, letterSpacing:"2.5px", color:"rgba(255,255,255,0.35)", textTransform:"uppercase", marginBottom:"30px" }}>Trusted by Engineers &amp; Founders</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"20px 30px", alignItems:"center", marginBottom:"38px" }}>
+            {["CURSOR","ANTHROPIC","OpenAI","Replicate","Vercel","LangChain"].map(name => (
+              <span key={name} style={{ fontSize:"13px", fontWeight:800, color:"rgba(255,255,255,0.38)", letterSpacing:"1px", cursor:"pointer", transition:"color .25s,text-shadow .25s" }}
+                onMouseEnter={e => { const el=e.currentTarget as HTMLSpanElement; el.style.color="rgba(255,255,255,0.88)"; el.style.textShadow="0 0 20px rgba(255,255,255,0.3)"; }}
+                onMouseLeave={e => { const el=e.currentTarget as HTMLSpanElement; el.style.color="rgba(255,255,255,0.38)"; el.style.textShadow=""; }}
+              >{name}</span>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:"16px", flexWrap:"wrap" }}>
+            {[
+              { val:"12,642+", lbl:"Newsletter subscribers" },
+              { val:"340+",    lbl:"AI tools indexed" },
+              { val:"4.9 ★",   lbl:"Average rating" }
+            ].map(({ val, lbl }) => (
+              <TiltCard key={lbl} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"14px", padding:"16px 22px" }}>
+                <div style={{ fontSize:"22px", fontWeight:900, color:"#fff", marginBottom:"3px" }}>{val}</div>
+                <div style={{ fontSize:"11px", color:"rgba(255,255,255,0.42)" }}>{lbl}</div>
+              </TiltCard>
+            ))}
+          </div>
+        </RevealSection>
+
+        <RevealSection delay={0.1}>
+          <div style={{ fontSize:"11px", fontWeight:700, letterSpacing:"2.5px", color:"rgba(255,255,255,0.35)", textTransform:"uppercase", marginBottom:"22px" }}>What Readers Say</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+            {[
+              { q:"The AI Stacks is now my go-to resource for real insights on building with AI in production.", name:"Alex R.", role:"Founder @ Synthflow", init:"AR", grad:"linear-gradient(135deg,#7c5cff,#00d4ff)" },
+              { q:"Finally a newsletter that treats engineers as adults. No hype, just systems that actually work.", name:"Maya K.", role:"ML Engineer @ Scale AI", init:"MK", grad:"linear-gradient(135deg,#00c6ff,#0072ff)" }
+            ].map(({ q, name, role, init, grad }) => (
+              <TiltCard key={name} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"16px", padding:"24px", transition:"border-color .3s" }}>
+                <div style={{ fontSize:"20px", color:"rgba(0,212,255,0.5)", marginBottom:"12px", lineHeight:1 }}>&ldquo;</div>
+                <blockquote style={{ fontSize:"14px", lineHeight:1.75, color:"rgba(255,255,255,0.8)", fontStyle:"italic", margin:"0 0 18px" }}>{q}</blockquote>
+                <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+                  <div style={{ width:"38px", height:"38px", borderRadius:"50%", background:grad, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", fontWeight:700, flexShrink:0 }}>{init}</div>
+                  <div>
+                    <div style={{ fontSize:"13px", fontWeight:700 }}>{name}</div>
+                    <div style={{ fontSize:"11px", color:"rgba(255,255,255,0.42)" }}>{role}</div>
+                  </div>
+                </div>
+              </TiltCard>
+            ))}
+          </div>
+        </RevealSection>
+      </section>
+
     </div>
   );
 }

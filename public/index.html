@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Stacks</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#060918;color:#fff;overflow-x:hidden;}
+a{text-decoration:none;color:inherit;}
+
+/* ── NAVBAR ── */
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:0 60px;height:62px;background:rgba(6,9,24,0.88);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,0.06);position:sticky;top:0;z-index:100;}
+.nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:13px;letter-spacing:1.8px;}
+.nav-logo-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#7c5cff,#00d4ff);display:flex;align-items:center;justify-content:center;}
+.nav-links{display:flex;gap:30px;list-style:none;}
+.nav-links li a{font-size:13px;color:rgba(255,255,255,0.72);transition:color .2s;}
+.nav-links li a:hover{color:#fff;}
+.nav-actions{display:flex;gap:10px;align-items:center;}
+.btn-subscribe{padding:8px 18px;background:linear-gradient(135deg,#00c6ff,#0072ff);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.btn-subscribe:hover{opacity:.85;}
+.btn-browse{padding:8px 18px;background:transparent;border:1px solid rgba(255,255,255,0.22);border-radius:8px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:background .2s;}
+.btn-browse:hover{background:rgba(255,255,255,0.06);}
+
+/* ── HERO ── */
+.hero{display:grid;grid-template-columns:1fr 1fr;min-height:540px;padding:72px 60px;gap:56px;align-items:center;position:relative;overflow:hidden;background-image:radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px);background-size:28px 28px;}
+.hero::after{content:'';position:absolute;top:-140px;right:-80px;width:540px;height:540px;background:radial-gradient(circle,rgba(20,80,255,.18) 0%,transparent 68%);pointer-events:none;}
+.hero-left{position:relative;z-index:2;}
+.hero-left h1{font-size:52px;line-height:1.09;font-weight:800;letter-spacing:-1.5px;}
+.gradient-text{background:linear-gradient(90deg,#8b5cf6,#00d4ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-left .sub{margin-top:16px;font-size:15px;color:rgba(255,255,255,0.58);line-height:1.65;max-width:400px;}
+.hero-btns{display:flex;gap:12px;margin-top:28px;}
+.btn-cta1{display:flex;align-items:center;gap:6px;padding:11px 22px;background:linear-gradient(135deg,#00b4d8,#0090c0);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.btn-cta1:hover{opacity:.85;}
+.btn-cta2{padding:11px 22px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.16);border-radius:9px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s;}
+.btn-cta2:hover{background:rgba(255,255,255,0.1);}
+.hero-badges{display:flex;gap:22px;margin-top:22px;}
+.badge{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,0.46);}
+.badge-dot{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:9px;}
+
+/* hero right panel */
+.hero-right{position:relative;height:440px;z-index:2;}
+.hero-panel{
+  position:absolute;inset:0;border-radius:20px;
+  background:linear-gradient(160deg,#080e28 0%,#050918 60%,#030710 100%);
+  border:1px solid rgba(60,100,255,0.2);
+  overflow:hidden;
+}
+/* star-dot background */
+.hero-panel::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),
+    radial-gradient(rgba(255,255,255,0.25) 1px,transparent 1px);
+  background-size:36px 36px,72px 72px;
+  background-position:0 0,18px 18px;
+}
+/* planet glow — lives inside .hero-panel */
+.planet-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1;}
+.planet{
+  width:290px;height:290px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#6aacff 0%,#3070e8 20%,#1040c0 42%,#060e38 68%,transparent 100%);
+  box-shadow:
+    0 0 40px  rgba(60,130,255,1),
+    0 0 80px  rgba(50,110,255,.9),
+    0 0 140px rgba(40,90,255,.65),
+    0 0 220px rgba(30,70,240,.38),
+    0 0 320px rgba(20,55,220,.2);
+  position:relative;overflow:hidden;
+}
+.planet-lines{
+  position:absolute;inset:0;border-radius:50%;
+  background:
+    repeating-linear-gradient(0deg,transparent 0px,transparent 13px,rgba(140,200,255,.11) 13px,rgba(140,200,255,.11) 14px),
+    repeating-linear-gradient(90deg,transparent 0px,transparent 21px,rgba(110,170,255,.07) 21px,rgba(110,170,255,.07) 22px);
+}
+.planet-shine{position:absolute;top:9%;left:11%;width:40%;height:30%;border-radius:50%;background:rgba(210,235,255,.22);filter:blur(9px);}
+.planet-ring{position:absolute;inset:-18%;border-radius:50%;border:1px solid rgba(80,150,255,.14);box-shadow:0 0 40px rgba(60,130,255,.15);}
+
+/* cards — inside hero-panel so planet glow shows through */
+.hero-cards{
+  position:absolute;inset:0;z-index:2;
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px;
+}
+.hcard{
+  background:rgba(6,12,42,0.42);
+  border:1px solid rgba(90,130,255,0.22);
+  border-radius:14px;padding:18px;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  transition:transform .3s,box-shadow .3s,border-color .3s;
+}
+.hcard:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(0,0,0,.6);border-color:rgba(110,160,255,0.38);}
+.hcard-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.hcard h4{font-size:12.5px;font-weight:700;margin-bottom:5px;letter-spacing:-.1px;}
+.hcard p{font-size:11px;color:rgba(255,255,255,0.52);line-height:1.55;}
+.ic-blue{background:rgba(0,180,255,.2);box-shadow:0 0 10px rgba(0,180,255,.15);}
+.ic-green{background:rgba(0,220,120,.18);box-shadow:0 0 10px rgba(0,220,120,.12);}
+.ic-purple{background:rgba(160,90,255,.2);box-shadow:0 0 10px rgba(160,90,255,.15);}
+.ic-indigo{background:rgba(80,100,255,.2);box-shadow:0 0 10px rgba(80,100,255,.15);}
+
+/* ── SECTION COMMONS ── */
+.sec{padding:56px 60px;}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.45);text-transform:uppercase;}
+.sec-hdr-right{display:flex;align-items:center;gap:10px;}
+.view-all{font-size:13px;color:rgba(255,255,255,0.55);cursor:pointer;transition:color .2s;}
+.view-all:hover{color:#fff;}
+.nav-arr{width:30px;height:30px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;transition:background .2s;}
+.nav-arr:hover{background:rgba(255,255,255,0.1);}
+
+/* ── LATEST INTELLIGENCE ── */
+.intel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
+.icard{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:13px;overflow:hidden;cursor:pointer;transition:transform .3s,border-color .3s;}
+.icard:hover{transform:translateY(-5px);border-color:rgba(255,255,255,0.15);}
+.icard-img{height:120px;position:relative;overflow:hidden;}
+.icard-img img{width:100%;height:100%;object-fit:cover;filter:brightness(.55);}
+.icard-img-ov{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.75) 100%);}
+.icard-body{padding:13px;}
+.cbadge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px;}
+.cb-mcp{background:rgba(0,200,150,.15);color:#00c896;}
+.cb-ctx{background:rgba(80,200,255,.15);color:#50c8ff;}
+.cb-ag{background:rgba(180,130,255,.15);color:#b482ff;}
+.cb-cur{background:rgba(255,200,80,.15);color:#ffc850;}
+.cb-cld{background:rgba(255,130,80,.15);color:#ff8250;}
+.cb-tut{background:rgba(80,200,100,.15);color:#50c864;}
+.icard h4{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:11px;}
+.icard-meta{display:flex;justify-content:space-between;align-items:center;}
+.icard-date{font-size:11px;color:rgba(255,255,255,0.38);}
+.icard-arr{font-size:14px;color:rgba(255,255,255,0.35);transition:color .2s;}
+.icard:hover .icard-arr{color:#00d4ff;}
+
+/* ── STOP VIBE CODING ── */
+.vibe-sec{padding:68px 60px;text-align:center;border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);}
+.vibe-sec h2{font-size:34px;font-weight:800;letter-spacing:-.5px;margin-bottom:12px;}
+.vibe-sec .vsub{color:rgba(255,255,255,0.5);font-size:15px;margin-bottom:38px;}
+.vibe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;text-align:left;}
+.vcard{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px;transition:border-color .3s;}
+.vcard:hover{border-color:rgba(255,255,255,0.15);}
+.vcard-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:15px;}
+.vcard h3{font-size:14px;font-weight:700;margin-bottom:13px;}
+.vcard ul{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.vcard ul li{font-size:13px;color:rgba(255,255,255,0.58);display:flex;align-items:flex-start;gap:8px;line-height:1.4;}
+.vcard ul li::before{content:'•';color:rgba(0,200,220,.7);flex-shrink:0;}
+.vi-cyan{background:rgba(0,200,220,.14);}
+.vi-purple{background:rgba(130,80,255,.14);}
+
+/* ── LATEST ARTICLES ── */
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px;}
+.ftab{padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;transition:all .2s;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);background:transparent;}
+.ftab.active{background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2);}
+.ftab:hover{background:rgba(255,255,255,0.07);color:#fff;}
+.art-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-bottom:30px;}
+.acard{display:flex;gap:15px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:13px;overflow:hidden;padding:15px;cursor:pointer;transition:border-color .3s,transform .3s;}
+.acard:hover{border-color:rgba(255,255,255,0.15);transform:translateY(-3px);}
+.acard-img{width:118px;height:88px;border-radius:9px;overflow:hidden;flex-shrink:0;}
+.acard-img img{width:100%;height:100%;object-fit:cover;filter:brightness(.65);}
+.acard-body{flex:1;}
+.acard-body h4{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:5px;margin-top:4px;}
+.acard-desc{font-size:12px;color:rgba(255,255,255,0.48);line-height:1.5;margin-bottom:10px;}
+.acard-meta{display:flex;align-items:center;justify-content:space-between;}
+.acard-date{font-size:11px;color:rgba(255,255,255,0.38);}
+.acard-author{display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.48);}
+.av{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#7c5cff,#00d4ff);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+.btn-va{display:block;margin:0 auto;padding:11px 28px;background:transparent;border:1px solid rgba(255,255,255,0.18);border-radius:9px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s;}
+.btn-va:hover{background:rgba(255,255,255,0.07);}
+
+/* ── HOW AI WORKS ── */
+.how-sec{padding:66px 60px;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:280px 1fr;gap:60px;align-items:center;}
+.how-left h2{font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.85);line-height:1.5;margin-bottom:14px;}
+.how-left p{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:22px;}
+.btn-guide{display:inline-flex;align-items:center;gap:7px;padding:11px 20px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:9px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:background .2s;}
+.btn-guide:hover{background:rgba(255,255,255,0.1);}
+.flow{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:28px 20px;}
+.fstep{display:flex;flex-direction:column;align-items:center;text-align:center;flex:1;}
+.ficon{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+/* Per-step icon colors matching image */
+.fi-input{background:rgba(90,70,255,.22);border:1px solid rgba(100,80,255,.4);}
+.fi-ctx{background:rgba(0,180,200,.2);border:1px solid rgba(0,190,210,.38);}
+.fi-agent{background:rgba(160,60,255,.22);border:1px solid rgba(170,70,255,.4);}
+.fi-mcp{background:rgba(210,40,220,.2);border:1px solid rgba(220,50,230,.38);}
+.fi-out{background:rgba(255,130,30,.2);border:1px solid rgba(255,140,40,.38);}
+.fstep h5{font-size:12px;font-weight:700;margin-bottom:4px;color:#fff;}
+.fstep p{font-size:10px;color:rgba(255,255,255,0.42);line-height:1.4;max-width:80px;}
+.farr{flex-shrink:0;width:40px;margin-bottom:32px;display:flex;align-items:center;}
+.farr svg{width:100%;height:12px;}
+
+/* ── BUILDER RESOURCES ── */
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:26px;}
+.rcard{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:13px;padding:20px;cursor:pointer;transition:border-color .3s,transform .3s;}
+.rcard:hover{border-color:rgba(255,255,255,0.15);transform:translateY(-3px);}
+.rcard-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:13px;}
+.rcard h4{font-size:13px;font-weight:700;margin-bottom:5px;}
+.rcard p{font-size:12px;color:rgba(255,255,255,0.48);line-height:1.5;margin-bottom:15px;}
+.rcard-exp{font-size:12px;color:rgba(255,255,255,0.55);display:flex;align-items:center;gap:4px;}
+.rcard:hover .rcard-exp{color:#00d4ff;}
+
+/* ── NEWSLETTER ── */
+.nl-sec{margin:0 60px 60px;background:linear-gradient(135deg,rgba(76,38,196,.45),rgba(38,18,120,.4));border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:38px 42px;display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;}
+.nl-icon{width:44px;height:44px;background:rgba(255,255,255,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:15px;font-size:20px;}
+.nl-sec h2{font-size:21px;font-weight:700;margin-bottom:7px;}
+.nl-sec .nl-sub{font-size:13px;color:rgba(255,255,255,0.58);}
+.nl-right{display:flex;flex-direction:column;gap:13px;min-width:310px;}
+.nl-form{display:flex;gap:10px;}
+.nl-inp{flex:1;padding:11px 15px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:#fff;font-size:13px;outline:none;}
+.nl-inp::placeholder{color:rgba(255,255,255,0.38);}
+.btn-nl{padding:11px 18px;background:linear-gradient(135deg,#7c5cff,#00d4ff);border:none;border-radius:9px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .2s;}
+.btn-nl:hover{opacity:.85;}
+.nl-social{display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,0.48);}
+.av-stack{display:flex;}
+.av-stack img{width:24px;height:24px;border-radius:50%;border:2px solid rgba(255,255,255,0.12);margin-left:-7px;object-fit:cover;}
+.av-stack img:first-child{margin-left:0;}
+
+/* ── TRUSTED BY ── */
+.trust-sec{padding:56px 60px;border-top:1px solid rgba(255,255,255,0.05);display:grid;grid-template-columns:1fr 1fr;gap:80px;}
+.trust-label{font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.38);text-transform:uppercase;margin-bottom:26px;}
+.trust-logos{display:flex;flex-wrap:wrap;gap:24px;align-items:center;}
+.tlogo{font-size:13px;font-weight:700;color:rgba(255,255,255,0.45);letter-spacing:.5px;display:flex;align-items:center;gap:6px;transition:color .2s;cursor:pointer;}
+.tlogo:hover{color:rgba(255,255,255,0.8);}
+.tcard{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:13px;padding:22px;}
+.tcard blockquote{font-size:14px;line-height:1.7;color:rgba(255,255,255,0.8);font-style:italic;margin-bottom:16px;}
+.t-author{display:flex;align-items:center;gap:12px;}
+.t-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#7c5cff,#00d4ff);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.t-name{font-size:13px;font-weight:600;}
+.t-role{font-size:11px;color:rgba(255,255,255,0.42);}
+
+/* ── FOOTER ── */
+footer{padding:48px 60px 28px;border-top:1px solid rgba(255,255,255,0.05);}
+.ft-top{display:grid;grid-template-columns:1.6fr repeat(4,1fr);gap:36px;margin-bottom:38px;}
+.ft-brand p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;margin-top:10px;max-width:200px;}
+.ft-socials{display:flex;gap:10px;margin-top:14px;}
+.soc{width:28px;height:28px;background:rgba(255,255,255,0.07);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;transition:background .2s;}
+.soc:hover{background:rgba(255,255,255,0.14);}
+.ft-col h5{font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.65);text-transform:uppercase;margin-bottom:13px;}
+.ft-col ul{list-style:none;display:flex;flex-direction:column;gap:9px;}
+.ft-col ul li{font-size:13px;color:rgba(255,255,255,0.42);cursor:pointer;transition:color .2s;}
+.ft-col ul li:hover{color:rgba(255,255,255,0.8);}
+.ft-bot{border-top:1px solid rgba(255,255,255,0.05);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,0.28);}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.intel-grid{grid-template-columns:repeat(2,1fr);}.ft-top{grid-template-columns:1fr 1fr;}}
+@media(max-width:768px){
+  .navbar{padding:0 20px;}.nav-links{display:none;}
+  .hero{padding:40px 20px;grid-template-columns:1fr;}.hero-right{display:none;}
+  .sec,.vibe-sec,.how-sec,.trust-sec{padding-left:20px;padding-right:20px;}
+  .nl-sec{margin:0 20px 40px;grid-template-columns:1fr;}
+  .vibe-grid,.res-grid,.art-grid{grid-template-columns:1fr;}
+  .intel-grid{grid-template-columns:1fr;}
+  .how-sec{grid-template-columns:1fr;}.flow{flex-wrap:wrap;}
+  .trust-sec{grid-template-columns:1fr;gap:40px;}
+  .ft-top{grid-template-columns:1fr;}.hero-left h1{font-size:36px;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="3.5" fill="white" opacity=".9"/>
+        <circle cx="8" cy="8" r="7" stroke="white" stroke-width="1" opacity=".35" fill="none"/>
+        <line x1="1" y1="8" x2="15" y2="8" stroke="white" stroke-width=".8" opacity=".3"/>
+        <line x1="8" y1="1" x2="8" y2="15" stroke="white" stroke-width=".8" opacity=".3"/>
+      </svg>
+    </div>
+    THE AI STACKS
+  </div>
+  <ul class="nav-links">
+    <li><a href="#">Home</a></li>
+    <li><a href="#">Articles</a></li>
+    <li><a href="#">Tools</a></li>
+    <li><a href="#">MCP Guide</a></li>
+    <li><a href="#">About</a></li>
+  </ul>
+  <div class="nav-actions">
+    <button class="btn-subscribe">Subscribe</button>
+    <button class="btn-browse">Browse Tools</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <h1>The Intelligence<br>Layer for <span class="gradient-text">AI Builders</span></h1>
+    <p class="sub">Weekly insights, workflows, and systems for building production-grade AI tools.</p>
+    <div class="hero-btns">
+      <button class="btn-cta1">Read Latest Issue &nbsp;→</button>
+      <button class="btn-cta2">Join Newsletter</button>
+    </div>
+    <div class="hero-badges">
+      <div class="badge"><div class="badge-dot">📅</div>Weekly updates</div>
+      <div class="badge"><div class="badge-dot">✓</div>No spam</div>
+      <div class="badge"><div class="badge-dot">👤</div>Built for engineers</div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="hero-panel">
+      <div class="planet-wrap">
+        <div class="planet">
+          <div class="planet-lines"></div>
+          <div class="planet-shine"></div>
+          <div class="planet-ring"></div>
+        </div>
+      </div>
+      <div class="hero-cards">
+        <div class="hcard">
+          <div class="hcard-icon ic-blue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="5.6" y1="5.6" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="18.4" y2="18.4"/><line x1="5.6" y1="18.4" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="18.4" y2="5.6"/></svg>
+          </div>
+          <h4>Context Engineering</h4>
+          <p>Design better context. Build reliable systems.</p>
+        </div>
+        <div class="hcard">
+          <div class="hcard-icon ic-green">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00dc78" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
+          </div>
+          <h4>MCP Architecture</h4>
+          <p>Connect models to tools with MCP servers.</p>
+        </div>
+        <div class="hcard">
+          <div class="hcard-icon ic-purple">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b482ff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+          </div>
+          <h4>Agent Workflows</h4>
+          <p>Orchestrate agents. Automate real work.</p>
+        </div>
+        <div class="hcard">
+          <div class="hcard-icon ic-indigo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6496ff" stroke-width="2" stroke-linecap="round"><rect x="4" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="16" y="4" width="4" height="16" rx="1"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
+          </div>
+          <h4>Tool Benchmarks</h4>
+          <p>Real benchmarks. No marketing hype.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LATEST INTELLIGENCE -->
+<section class="sec" style="padding-top:18px;">
+  <div class="sec-hdr">
+    <span class="sec-label">Latest Intelligence</span>
+    <div class="sec-hdr-right">
+      <span class="view-all">View all articles →</span>
+      <div class="nav-arr">←</div>
+      <div class="nav-arr">→</div>
+    </div>
+  </div>
+  <div class="intel-grid">
+    <div class="icard">
+      <div class="icard-img"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=75" alt=""/><div class="icard-img-ov"></div></div>
+      <div class="icard-body">
+        <span class="cbadge cb-mcp">MCP</span>
+        <h4>From Figma to Production: MCP Stack Workflow</h4>
+        <div class="icard-meta"><span class="icard-date">May 18, 2024 · 8 min read</span><span class="icard-arr">→</span></div>
+      </div>
+    </div>
+    <div class="icard">
+      <div class="icard-img"><img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&q=75" alt=""/><div class="icard-img-ov"></div></div>
+      <div class="icard-body">
+        <span class="cbadge cb-ctx">Context Engineering</span>
+        <h4>Context Engineering is Replacing Prompt Engineering</h4>
+        <div class="icard-meta"><span class="icard-date">May 16, 2024 · 6 min read</span><span class="icard-arr">→</span></div>
+      </div>
+    </div>
+    <div class="icard">
+      <div class="icard-img"><img src="https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&q=75" alt=""/><div class="icard-img-ov"></div></div>
+      <div class="icard-body">
+        <span class="cbadge cb-ag">Agents</span>
+        <h4>Why Most AI Agents Fail in Production Systems</h4>
+        <div class="icard-meta"><span class="icard-date">May 14, 2024 · 9 min read</span><span class="icard-arr">→</span></div>
+      </div>
+    </div>
+    <div class="icard">
+      <div class="icard-img"><img src="https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400&q=75" alt=""/><div class="icard-img-ov"></div></div>
+      <div class="icard-body">
+        <span class="cbadge cb-cur">Cursor</span>
+        <h4>Cursor + Claude 3.5 + MCP: The Ultimate Dev Stack?</h4>
+        <div class="icard-meta"><span class="icard-date">May 12, 2024 · 7 min read</span><span class="icard-arr">→</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STOP VIBE CODING -->
+<section class="vibe-sec">
+  <h2>Stop Vibe Coding. Start System Building.</h2>
+  <p class="vsub">We break down the systems, tools, and workflows behind production-grade AI applications.</p>
+  <div class="vibe-grid">
+    <div class="vcard">
+      <div class="vcard-icon vi-cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00c8dc" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+      </div>
+      <h3>Context Engineering</h3>
+      <ul>
+        <li>Design structured context</li>
+        <li>Reduce hallucination risk</li>
+        <li>Improve agent reliability</li>
+        <li>Build repeatable systems</li>
+      </ul>
+    </div>
+    <div class="vcard">
+      <div class="vcard-icon vi-purple">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8250ff" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <h3>AI Tool Intelligence</h3>
+      <ul>
+        <li>Cursor, Claude, Gemini comparisons</li>
+        <li>Real benchmarks, not hype</li>
+        <li>Deep dives into model behavior</li>
+        <li>Find the right tool for the job</li>
+      </ul>
+    </div>
+    <div class="vcard">
+      <div class="vcard-icon vi-cyan">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00c8dc" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3a9 9 0 1 0 9 9"/><path d="M3 12a9 9 0 0 0 9 9"/></svg>
+      </div>
+      <h3>Production AI Systems</h3>
+      <ul>
+        <li>MCP servers and toolchains</li>
+        <li>Agent orchestration patterns</li>
+        <li>Deployment &amp; observability</li>
+        <li>Real-world case studies</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- LATEST ARTICLES -->
+<section class="sec">
+  <div class="sec-hdr"><span class="sec-label">Latest Articles</span></div>
+  <div class="filter-row">
+    <div class="ftab active">All</div>
+    <div class="ftab">Context Engineering</div>
+    <div class="ftab">Agents</div>
+    <div class="ftab">Cursor</div>
+    <div class="ftab">Claude</div>
+    <div class="ftab">Tutorials</div>
+    <div class="ftab">Opinions</div>
+  </div>
+  <div class="art-grid">
+    <div class="acard">
+      <div class="acard-img"><img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=300&q=75" alt=""/></div>
+      <div class="acard-body">
+        <span class="cbadge cb-ctx">Context Engineering</span>
+        <h4>The Context Engineering Playbook</h4>
+        <p class="acard-desc">A practical guide to designing, testing, and evolving context that drives reliable AI outputs.</p>
+        <div class="acard-meta">
+          <span class="acard-date">May 17, 2024 · 10 min read</span>
+          <div class="acard-author"><div class="av">AK</div>Aman K.</div>
+        </div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-img"><img src="https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=300&q=75" alt=""/></div>
+      <div class="acard-body">
+        <span class="cbadge cb-cld">Claude</span>
+        <h4>Claude 3.5 vs GPT-4o vs Gemini 1.5</h4>
+        <p class="acard-desc">A deep benchmark across coding, reasoning, and tool use. Surprising results.</p>
+        <div class="acard-meta">
+          <span class="acard-date">May 15, 2024 · 12 min read</span>
+          <div class="acard-author"><div class="av">AK</div>Aman K.</div>
+        </div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-img"><img src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&q=75" alt=""/></div>
+      <div class="acard-body">
+        <span class="cbadge cb-tut">Tutorial</span>
+        <h4>Build an AI Agent with MCP in 20 Minutes</h4>
+        <p class="acard-desc">Step-by-step tutorial to build your first agent connected to real-world tools.</p>
+        <div class="acard-meta">
+          <span class="acard-date">May 13, 2024 · 8 min read</span>
+          <div class="acard-author"><div class="av">AK</div>Aman K.</div>
+        </div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-img"><img src="https://images.unsplash.com/photo-1655720031554-a929595ffad7?w=300&q=75" alt=""/></div>
+      <div class="acard-body">
+        <span class="cbadge cb-ag">Agents</span>
+        <h4>Multi-Agent Orchestration Patterns</h4>
+        <p class="acard-desc">Learn proven patterns for planning, routing, and coordinating multi-agent systems.</p>
+        <div class="acard-meta">
+          <span class="acard-date">May 11, 2024 · 11 min read</span>
+          <div class="acard-author"><div class="av">AK</div>Aman K.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn-va">View all articles →</button>
+</section>
+
+<!-- HOW AI SYSTEMS WORK -->
+<section class="how-sec">
+  <div class="how-left">
+    <h2>HOW MODERN AI SYSTEMS<br>ACTUALLY WORK</h2>
+    <p>AI systems are more than prompts. They are layered, observable, and continuously improving.</p>
+    <button class="btn-guide">Explore the full guide →</button>
+  </div>
+  <div class="flow">
+    <div class="fstep">
+      <div class="ficon fi-input">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8878ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M12 8v8"/></svg>
+      </div>
+      <h5>Input</h5>
+      <p>User request, data, or event</p>
+    </div>
+    <div class="farr">
+      <svg viewBox="0 0 40 12" fill="none"><line x1="0" y1="6" x2="30" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-dasharray="4 3"/><polyline points="26,2 34,6 26,10" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="fstep">
+      <div class="ficon fi-ctx">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00c8d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10M4 18h7"/><rect x="2" y="3" width="20" height="18" rx="2"/></svg>
+      </div>
+      <h5>Context Layer</h5>
+      <p>Retrieve, structure, and enrich context</p>
+    </div>
+    <div class="farr">
+      <svg viewBox="0 0 40 12" fill="none"><line x1="0" y1="6" x2="30" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-dasharray="4 3"/><polyline points="26,2 34,6 26,10" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="fstep">
+      <div class="ficon fi-agent">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c060ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2"/><path d="M2 20v-1a7 7 0 0 1 14 0v1"/><path d="M17 13a4 4 0 0 1 4 4v1"/></svg>
+      </div>
+      <h5>Agent Layer</h5>
+      <p>Plan, reason, and take actions</p>
+    </div>
+    <div class="farr">
+      <svg viewBox="0 0 40 12" fill="none"><line x1="0" y1="6" x2="30" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-dasharray="4 3"/><polyline points="26,2 34,6 26,10" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="fstep">
+      <div class="ficon fi-mcp">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d040e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </div>
+      <h5>MCP Tools</h5>
+      <p>Use tools via MCP servers</p>
+    </div>
+    <div class="farr">
+      <svg viewBox="0 0 40 12" fill="none"><line x1="0" y1="6" x2="30" y2="6" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-dasharray="4 3"/><polyline points="26,2 34,6 26,10" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="fstep">
+      <div class="ficon fi-out">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff9030" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/><circle cx="12" cy="12" r="10"/></svg>
+      </div>
+      <h5>Output</h5>
+      <p>Deliver response or take action</p>
+    </div>
+  </div>
+</section>
+
+<!-- BUILDER RESOURCES -->
+<section class="sec" style="border-top:1px solid rgba(255,255,255,0.05);">
+  <div class="sec-hdr">
+    <span class="sec-label">Builder Resources</span>
+    <span class="view-all">View all resources →</span>
+  </div>
+  <div class="res-grid">
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(255,100,50,.15);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6432" stroke-width="1.8" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <h4>MCP Server Directory</h4>
+      <p>Discover and explore the best MCP servers for your stack.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(0,200,100,.15);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00c864" stroke-width="1.8" stroke-linecap="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12"/><path d="M12 6v6l4 2"/><path d="M2 12C2 6.48 6.48 2 12 2"/></svg>
+      </div>
+      <h4>AI Agent Templates</h4>
+      <p>Production-ready agent templates you can fork.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(60,100,255,.15);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5a78ff" stroke-width="1.8" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      </div>
+      <h4>Cursor Prompt Packs</h4>
+      <p>High-quality prompt packs to boost your productivity.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(255,180,50,.15);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb432" stroke-width="1.8" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h4>Claude Code Workflows</h4>
+      <p>Reusable workflows for Claude Code projects.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(140,80,255,.15);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8c50ff" stroke-width="1.8" stroke-linecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <h4>Context Engineering Guide</h4>
+      <p>Learn the principles and practices that matter.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-icon" style="background:rgba(200,200,200,.08);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+      </div>
+      <h4>GitHub Repos</h4>
+      <p>Open-source tools and examples from the community.</p>
+      <div class="rcard-exp">Explore →</div>
+    </div>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<section class="nl-sec">
+  <div class="nl-left">
+    <div class="nl-icon">✉️</div>
+    <h2>Get Weekly AI Engineering Intelligence</h2>
+    <p class="nl-sub">No fluff. Only systems, workflows, and production AI insights.</p>
+  </div>
+  <div class="nl-right">
+    <div class="nl-form">
+      <input class="nl-inp" type="email" placeholder="Enter your email"/>
+      <button class="btn-nl">Subscribe</button>
+    </div>
+    <div class="nl-social">
+      <div class="av-stack">
+        <img src="https://i.pravatar.cc/40?img=11" alt=""/>
+        <img src="https://i.pravatar.cc/40?img=22" alt=""/>
+        <img src="https://i.pravatar.cc/40?img=33" alt=""/>
+        <img src="https://i.pravatar.cc/40?img=44" alt=""/>
+      </div>
+      Join 12,642+ engineers &amp; builders
+    </div>
+  </div>
+</section>
+
+<!-- TRUSTED BY + TESTIMONIALS -->
+<section class="trust-sec">
+  <div>
+    <div class="trust-label">Trusted by Engineers &amp; Founders</div>
+    <div class="trust-logos">
+      <div class="tlogo">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="rgba(255,255,255,0.5)"><rect x="1" y="1" width="12" height="12" rx="2"/></svg>
+        CURSOR
+      </div>
+      <div class="tlogo">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M7 2 C4 2 2 4 2 7 S4 12 7 12 S12 10 12 7 S10 2 7 2"/><path d="M7 5 L7 9 M5 7 L9 7"/></svg>
+        ANTHROPIC
+      </div>
+      <div class="tlogo">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><circle cx="7" cy="7" r="2"/></svg>
+        OpenAI
+      </div>
+      <div class="tlogo">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M7 2v10M2 7h10"/><circle cx="7" cy="7" r="5"/></svg>
+        Replicate
+      </div>
+      <div class="tlogo">
+        <svg width="11" height="13" viewBox="0 0 10 12" fill="rgba(255,255,255,0.5)"><path d="M5 0L10 6H7V12H3V6H0L5 0z"/></svg>
+        Vercel
+      </div>
+      <div class="tlogo">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"><path d="M2 7 C2 4 4 2 7 2 S12 4 12 7 S10 12 7 12"/><path d="M7 2 L7 12 M2 7 L12 7"/></svg>
+        LangChain
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="trust-label">What Readers Say</div>
+    <div class="tcard">
+      <blockquote>"The AI Stacks is now my go-to resource for real insights on building with AI in production."</blockquote>
+      <div class="t-author">
+        <div class="t-av">AR</div>
+        <div>
+          <div class="t-name">Alex R.</div>
+          <div class="t-role">Founder @ Synthflow</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-top">
+    <div class="ft-brand">
+      <div class="nav-logo">
+        <div class="nav-logo-icon">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.5" fill="white" opacity=".9"/><circle cx="8" cy="8" r="7" stroke="white" stroke-width="1" opacity=".35" fill="none"/></svg>
+        </div>
+        THE AI STACKS
+      </div>
+      <p>The intelligence layer for AI builders. Insights, tools, and systems for building with AI in production.</p>
+      <div class="ft-socials">
+        <div class="soc">𝕏</div>
+        <div class="soc">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        </div>
+        <div class="soc" style="font-size:9px;font-weight:700;">in</div>
+        <div class="soc">✉</div>
+      </div>
+    </div>
+    <div class="ft-col">
+      <h5>Content</h5>
+      <ul>
+        <li>Latest Articles</li>
+        <li>Popular</li>
+        <li>Categories</li>
+        <li>Authors</li>
+        <li>Newsletter</li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h5>Platform</h5>
+      <ul>
+        <li>Submit a Tool</li>
+        <li>Write for Us</li>
+        <li>Advertise</li>
+        <li>Changelog</li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h5>Resources</h5>
+      <ul>
+        <li>MCP Guide</li>
+        <li>AI Workflow Map</li>
+        <li>Prompt Engineering</li>
+        <li>Case Studies</li>
+        <li>GitHub</li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h5>Company</h5>
+      <ul>
+        <li>About Us</li>
+        <li>Contact</li>
+        <li>Privacy Policy</li>
+        <li>Terms of Use</li>
+      </ul>
+    </div>
+  </div>
+  <div class="ft-bot">© 2024 The AI Stacks. All rights reserved.</div>
+</footer>
+
+<script>
+document.querySelectorAll('.ftab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.ftab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

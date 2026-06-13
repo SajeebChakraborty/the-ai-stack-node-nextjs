@@ -3,16 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Moon, Search, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
 import type { Role } from "@/types/domain";
 import { getHomeForRole } from "@/lib/auth/portals";
-import { AccountMenu } from "@/components/layout/account-menu";
-import { DesktopNav } from "@/components/layout/desktop-nav";
+import { navItems } from "@/lib/constants/navigation";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { Logo } from "@/components/layout/logo";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils/cn";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 type HeaderUser = {
   name: string;
@@ -20,99 +15,91 @@ type HeaderUser = {
   role: Role;
 };
 
-// Routes that render a dark, immersive animated hero. The header goes
-// transparent-dark over the hero and solidifies into dark glass on scroll.
-const IMMERSIVE_ROUTES = new Set(["/", "/courses", "/automations", "/directory", "/rankings", "/pricing"]);
-
 export function SiteHeader({ user }: { user: HeaderUser | null }) {
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const dashboardPath = user ? getHomeForRole(user.role) : null;
-  const isOnDashboard =
-    Boolean(user) &&
-    (pathname === dashboardPath ||
-      pathname.startsWith("/user/") ||
-      pathname.startsWith("/founder/") ||
-      pathname.startsWith("/creator/") ||
-      pathname.startsWith("/account/"));
-
-  const showDashboardLink = Boolean(user && dashboardPath && !isOnDashboard);
-
-  // Immersive routes render a dark, animated hero. Make the header blend into
-  // them (transparent + dark tokens), then solidify into dark glass once scrolled.
-  const isLanding = IMMERSIVE_ROUTES.has(pathname);
 
   useEffect(() => {
-    if (!isLanding) {
-      setScrolled(false);
-      return;
-    }
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 10);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [isLanding]);
+  }, []);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 transition-colors duration-300",
-        isLanding
-          ? scrolled
-            ? "dark border-b border-white/10 bg-background/80 backdrop-blur-xl"
-            : "dark border-b border-transparent bg-transparent"
-          : "border-b bg-background/80 backdrop-blur-xl"
-      )}
-    >
-      <div className="container flex h-14 min-h-14 items-center justify-between gap-2 sm:h-16 sm:gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2 lg:flex-none">
-          <MobileNav user={user} showDashboard={showDashboardLink} dashboardHref={dashboardPath} />
-          <Logo />
+    <header style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "0 60px", height: "62px",
+      background: scrolled ? "rgba(6,9,24,0.97)" : "rgba(6,9,24,0.88)",
+      backdropFilter: "blur(14px)",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      position: "sticky", top: 0, zIndex: 100,
+      transition: "background .3s"
+    }}>
+      {/* Logo */}
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700, fontSize: "13px", letterSpacing: "1.8px", textDecoration: "none", color: "#fff" }}>
+        <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg,#7c5cff,#00d4ff)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="3.5" fill="white" opacity=".9"/>
+            <circle cx="8" cy="8" r="7" stroke="white" strokeWidth="1" opacity=".35" fill="none"/>
+            <line x1="1" y1="8" x2="15" y2="8" stroke="white" strokeWidth=".8" opacity=".3"/>
+            <line x1="8" y1="1" x2="8" y2="15" stroke="white" strokeWidth=".8" opacity=".3"/>
+          </svg>
         </div>
+        <span className="hidden sm:inline">THE AI STACKS</span>
+      </Link>
 
-        <DesktopNav dashboardHref={dashboardPath} showDashboard={showDashboardLink} />
-
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button asChild variant="ghost" size="icon" className="h-9 w-9 sm:hidden" aria-label="Search">
-            <Link href="/search">
-              <Search className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className={cn(
-              "hidden h-9 sm:inline-flex",
-              isLanding && "border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-            )}
+      {/* Desktop nav */}
+      <nav className="hidden lg:flex" style={{ gap: "30px", listStyle: "none" }}>
+        {navItems.map(item => (
+          <Link key={item.href} href={item.href} style={{
+            fontSize: "13px",
+            color: pathname === item.href || pathname.startsWith(item.href + "/") ? "#fff" : "rgba(255,255,255,0.72)",
+            textDecoration: "none", transition: "color .2s"
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "#fff"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = pathname === item.href || pathname.startsWith(item.href + "/") ? "#fff" : "rgba(255,255,255,0.72)"; }}
           >
-            <Link href="/search">
-              <Search className="mr-2 h-4 w-4" />
-              <span className="hidden md:inline">Search</span>
-            </Link>
-          </Button>
+            {item.label}
+          </Link>
+        ))}
+        {user && dashboardPath ? (
+          <Link href={dashboardPath} style={{ fontSize: "13px", color: "rgba(255,255,255,0.72)", textDecoration: "none", transition: "color .2s" }}>
+            Dashboard
+          </Link>
+        ) : null}
+      </nav>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-9 w-9 shrink-0"
-            aria-label="Toggle theme"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
-
-          {user ? (
-            <AccountMenu user={user} />
-          ) : (
-            <Button asChild size="sm" variant="default" className="hidden h-9 sm:inline-flex">
-              <Link href="/auth/login?next=/user/dashboard">Sign in</Link>
-            </Button>
-          )}
+      {/* Actions */}
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div className="lg:hidden">
+          <MobileNav user={user} showDashboard={Boolean(user && dashboardPath)} dashboardHref={dashboardPath} />
         </div>
+        {user ? (
+          <AccountMenu user={user} />
+        ) : (
+          <>
+            <Link href="/auth/login?next=/user/dashboard" style={{
+              padding: "8px 18px", background: "linear-gradient(135deg,#00c6ff,#0072ff)",
+              border: "none", borderRadius: "8px", color: "#fff", fontSize: "13px", fontWeight: 600,
+              cursor: "pointer", textDecoration: "none", transition: "opacity .2s",
+              display: "inline-block"
+            }}>
+              Subscribe
+            </Link>
+            <Link href="/directory" style={{
+              padding: "8px 18px", background: "transparent",
+              border: "1px solid rgba(255,255,255,0.22)", borderRadius: "8px", color: "#fff",
+              fontSize: "13px", fontWeight: 500, cursor: "pointer", textDecoration: "none",
+              transition: "background .2s", display: "inline-block"
+            }}
+              className="hidden sm:inline-block"
+            >
+              Browse Tools
+            </Link>
+          </>
+        )}
       </div>
     </header>
   );
