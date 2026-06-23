@@ -5,10 +5,10 @@ type SiteFooterProps = {
 };
 
 const contentLinks = [
-  { label: "Latest Articles", href: "/directory" },
-  { label: "Popular", href: "/rankings" },
+  { label: "Featured Courses", href: "/courses" },
+  { label: "Trending Tools", href: "/rankings" },
   { label: "Categories", href: "/directory" },
-  { label: "Newsletter", href: "/pricing" }
+  { label: "Membership", href: "/pricing" }
 ];
 
 const platformLinks = [
@@ -20,10 +20,10 @@ const platformLinks = [
 ];
 
 const resourceLinks = [
-  { label: "MCP Guide", href: "/directory" },
-  { label: "AI Workflow Map", href: "/directory" },
-  { label: "Prompt Engineering", href: "/directory" },
-  { label: "Case Studies", href: "/directory" }
+  { label: "Tool Directory", href: "/directory" },
+  { label: "Automation Marketplace", href: "/automations" },
+  { label: "Course Academy", href: "/courses" },
+  { label: "Live Rankings", href: "/rankings" }
 ];
 
 const companyLinks = [
@@ -72,7 +72,7 @@ export function SiteFooter({ categories = [] }: SiteFooterProps) {
             THE AI STACKS
           </Link>
           <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", lineHeight: 1.7, marginTop: "10px", maxWidth: "200px" }}>
-            The intelligence layer for AI builders. Insights, tools, and systems for building with AI in production.
+            Courses, directory, rankings, and automations — one platform to learn, compare, and ship with AI.
           </p>
           {/* Social icons */}
           <div style={{ display: "flex", gap: "10px", marginTop: "14px" }}>

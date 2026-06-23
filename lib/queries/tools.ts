@@ -6,7 +6,11 @@ import { categories, reviews as seedReviews, tools as seedTools } from "@/data/c
 import type { Review, Tool } from "@/types/domain";
 import { applyToolEngagementMetrics, syncToolEngagementMetrics } from "@/lib/analytics/tool-metrics";
 import { filterDisplayFeatures } from "@/lib/utils/display-features";
-import { DEFAULT_TOOL_LOGO, filterLikelyImageUrls, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
+import {
+  resolveDirectoryPromoVideoUrl,
+  resolveToolScreenshots
+} from "@/lib/utils/tool-media-defaults";
+import { filterLikelyImageUrls, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
 import { sortTools } from "@/lib/utils/ranking";
 
 const toolInclude = {
@@ -172,13 +176,28 @@ export function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { 
     };
   });
 
+  const seed = tool.slug || tool.id;
+  const resolvedPromo = resolveDirectoryPromoVideoUrl({
+    id: tool.id,
+    slug: tool.slug,
+    promoVideoUrl:
+      promoFromMetadata ??
+      promoFromMedia?.publicUrl ??
+      seedTool?.promoVideoUrl ??
+      videos[0]?.embedUrl ??
+      seedTool?.videos?.[0]?.embedUrl ??
+      null,
+    seedPromoVideoUrl: seedTool?.promoVideoUrl ?? seedTool?.videos?.[0]?.embedUrl ?? null,
+    seedVideos: videos.length ? videos : seedTool?.videos
+  });
+
   return {
     id: tool.id,
     slug: tool.slug,
     name: tool.name,
     tagline: tool.tagline,
     description: tool.description,
-    logoUrl: resolveToolLogoUrl(tool.logoUrl ?? seedTool?.logoUrl ?? DEFAULT_TOOL_LOGO),
+    logoUrl: resolveToolLogoUrl(tool.logoUrl ?? seedTool?.logoUrl ?? null, seed),
     websiteUrl: tool.websiteUrl,
     affiliateUrl: tool.affiliateUrl ?? seedTool?.affiliateUrl ?? tool.websiteUrl,
     categories: tool.categories.map((item) => item.category.name),
@@ -201,13 +220,18 @@ export function mapDbTool(tool: DbTool | DbToolPage, seedTool?: Tool): Tool & { 
       companyStage: tool.founder?.founderProfile?.companyStage ?? seedTool?.founder.companyStage ?? "Independent",
       location: tool.founder?.location ?? seedTool?.founder.location ?? "Remote"
     },
-    screenshots: filterLikelyImageUrls(screenshots.length ? screenshots : seedTool?.screenshots ?? []),
-    promoVideoUrl:
-      promoFromMetadata ??
-      promoFromMedia?.publicUrl ??
-      seedTool?.promoVideoUrl ??
-      (videos[0]?.embedUrl ?? seedTool?.videos?.[0]?.embedUrl ?? null),
-    videos: videos.length ? videos : seedTool?.videos ?? [],
+    screenshots: filterLikelyImageUrls(
+      screenshots.length
+        ? screenshots
+        : resolveToolScreenshots({
+            id: tool.id,
+            slug: tool.slug,
+            metadata: metadata as Record<string, unknown> | null,
+            seedScreenshots: seedTool?.screenshots
+          })
+    ),
+    promoVideoUrl: resolvedPromo,
+    videos: [{ title: "Promo video", embedUrl: resolvedPromo, duration: "Watch" }, ...videos.filter((v) => v.embedUrl !== resolvedPromo)],
     socials: {
       x: typeof socialLinks?.x === "string" ? socialLinks.x : seedTool?.socials.x ?? "",
       linkedin: typeof socialLinks?.linkedin === "string" ? socialLinks.linkedin : seedTool?.socials.linkedin ?? "",

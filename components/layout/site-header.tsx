@@ -86,7 +86,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
               cursor: "pointer", textDecoration: "none", transition: "opacity .2s",
               display: "inline-block"
             }}>
-              Subscribe
+              Sign in
             </Link>
             <Link href="/directory" style={{
               padding: "8px 18px", background: "transparent",
@@ -96,7 +96,7 @@ export function SiteHeader({ user }: { user: HeaderUser | null }) {
             }}
               className="hidden sm:inline-block"
             >
-              Browse Tools
+              Explore directory
             </Link>
           </>
         )}

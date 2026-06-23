@@ -1,5 +1,9 @@
-export const DEFAULT_TOOL_LOGO =
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=180&q=80";
+import {
+  DEFAULT_TOOL_LOGO,
+  resolveToolLogoUrl as resolveToolLogoUrlFromDefaults
+} from "@/lib/utils/tool-media-defaults";
+
+export { DEFAULT_TOOL_LOGO };
 
 const NEXT_IMAGE_REMOTE_HOSTS = new Set(["images.unsplash.com", "i.ytimg.com"]);
 
@@ -41,34 +45,8 @@ export function isLikelyImageUrl(value: string) {
   }
 }
 
-export function resolveToolLogoUrl(raw?: string | null) {
-  const trimmed = raw?.trim();
-  if (!trimmed) {
-    return DEFAULT_TOOL_LOGO;
-  }
-
-  if (isYoutubeOrVideoUrl(trimmed)) {
-    return DEFAULT_TOOL_LOGO;
-  }
-
-  if (trimmed.startsWith("/")) {
-    return trimmed;
-  }
-
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      return DEFAULT_TOOL_LOGO;
-    }
-
-    if (!isLikelyImageUrl(trimmed)) {
-      return DEFAULT_TOOL_LOGO;
-    }
-
-    return trimmed;
-  } catch {
-    return DEFAULT_TOOL_LOGO;
-  }
+export function resolveToolLogoUrl(raw?: string | null, seed?: string) {
+  return resolveToolLogoUrlFromDefaults(raw, seed);
 }
 
 export function filterLikelyImageUrls(urls: string[]) {

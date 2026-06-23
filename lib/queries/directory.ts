@@ -5,7 +5,11 @@ import { prisma } from "@/lib/db/prisma";
 import { parseDirectoryPriorityDays } from "@/lib/plans/limits";
 import { findSeedToolBySlug } from "@/lib/queries/tools";
 import { sortTools } from "@/lib/utils/ranking";
-import { DEFAULT_TOOL_LOGO, resolveToolLogoUrl } from "@/lib/utils/tool-logo";
+import {
+  resolveDirectoryPromoVideoUrl,
+  resolveToolScreenshots
+} from "@/lib/utils/tool-media-defaults";
+import { resolveToolLogoUrl } from "@/lib/utils/tool-logo";
 import type { DirectoryFilters, DirectoryTool } from "@/types/directory";
 import type { Tool } from "@/types/domain";
 
@@ -131,10 +135,14 @@ function getRecord(value: Prisma.JsonValue | null | undefined) {
 function mapDirectoryTool(tool: DirectoryDbTool): DirectoryTool {
   const metadata = getRecord(tool.metadata);
   const seedTool = findSeedToolBySlug(tool.slug) ?? undefined;
-  const promoVideoUrl =
-    typeof metadata?.promoVideoUrl === "string" && metadata.promoVideoUrl.trim()
-      ? metadata.promoVideoUrl
-      : (seedTool?.promoVideoUrl ?? seedTool?.videos?.[0]?.embedUrl ?? null);
+  const seed = tool.slug || tool.id;
+  const promoVideoUrl = resolveDirectoryPromoVideoUrl({
+    id: tool.id,
+    slug: tool.slug,
+    promoVideoUrl: typeof metadata?.promoVideoUrl === "string" ? metadata.promoVideoUrl : null,
+    seedPromoVideoUrl: seedTool?.promoVideoUrl ?? seedTool?.videos?.[0]?.embedUrl ?? null,
+    seedVideos: seedTool?.videos
+  });
 
   return {
     id: tool.id,
@@ -142,7 +150,7 @@ function mapDirectoryTool(tool: DirectoryDbTool): DirectoryTool {
     name: tool.name,
     tagline: tool.tagline,
     description: tool.description,
-    logoUrl: resolveToolLogoUrl(tool.logoUrl ?? seedTool?.logoUrl ?? DEFAULT_TOOL_LOGO),
+    logoUrl: resolveToolLogoUrl(tool.logoUrl ?? seedTool?.logoUrl ?? null, seed),
     websiteUrl: tool.websiteUrl,
     affiliateUrl: tool.affiliateUrl ?? seedTool?.affiliateUrl ?? tool.websiteUrl,
     categories: tool.categories.map((item) => item.category.name),
@@ -163,11 +171,14 @@ function mapDirectoryTool(tool: DirectoryDbTool): DirectoryTool {
       companyStage: "Independent",
       location: "Remote"
     },
-    screenshots: [],
+    screenshots: resolveToolScreenshots({
+      id: tool.id,
+      slug: tool.slug,
+      metadata: metadata as Record<string, unknown> | null,
+      seedScreenshots: seedTool?.screenshots
+    }),
     promoVideoUrl,
-    videos: promoVideoUrl
-      ? [{ title: "Promo video", embedUrl: promoVideoUrl, duration: "Watch" }]
-      : (seedTool?.videos ?? []),
+    videos: [{ title: "Promo video", embedUrl: promoVideoUrl, duration: "Watch" }],
     socials: seedTool?.socials ?? { x: "", linkedin: "", youtube: "", discord: "" },
     faqs: [],
     founderId: tool.founderId

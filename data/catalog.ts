@@ -48,7 +48,7 @@ export const tools: Tool[] = [
       "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1400&q=80"
     ],
-    videos: [{ title: "StackPilot founder walkthrough", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", duration: "8:14" }],
+    videos: [{ title: "StackPilot founder walkthrough", embedUrl: "https://www.youtube.com/embed/TlBMlNB6KhA", duration: "8:14" }],
     socials: {
       x: "https://x.com/stackpilot",
       linkedin: "https://linkedin.com/company/stackpilot",
@@ -92,7 +92,7 @@ export const tools: Tool[] = [
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1400&q=80"
     ],
-    videos: [{ title: "Prompt governance in production", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", duration: "11:02" }],
+    videos: [{ title: "Prompt governance in production", embedUrl: "https://www.youtube.com/embed/kCc8FmEb1nY", duration: "11:02" }],
     socials: {
       x: "https://x.com/promptforge",
       linkedin: "https://linkedin.com/company/promptforge",
@@ -136,7 +136,7 @@ export const tools: Tool[] = [
       "https://images.unsplash.com/photo-1611162616305-c69b3037f199?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1616469829581-73993eb86b02?auto=format&fit=crop&w=1400&q=80"
     ],
-    videos: [{ title: "From launch call to 20 shorts", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", duration: "5:39" }],
+    videos: [{ title: "From launch call to 20 shorts", embedUrl: "https://www.youtube.com/embed/LSX3qdyXqPg", duration: "5:39" }],
     socials: {
       x: "https://x.com/clipnova",
       linkedin: "https://linkedin.com/company/clipnova",
@@ -180,7 +180,7 @@ export const tools: Tool[] = [
       "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1400&q=80",
       "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1400&q=80"
     ],
-    videos: [{ title: "Legal ops review demo", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", duration: "7:48" }],
+    videos: [{ title: "Legal ops review demo", embedUrl: "https://www.youtube.com/embed/aircAruvnKk", duration: "7:48" }],
     socials: {
       x: "https://x.com/contractlens",
       linkedin: "https://linkedin.com/company/contractlens",
