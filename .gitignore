@@ -8,4 +8,5 @@ coverage
 dist
 *.tsbuildinfo
 supabase/.branches
+
 supabase/.temp
